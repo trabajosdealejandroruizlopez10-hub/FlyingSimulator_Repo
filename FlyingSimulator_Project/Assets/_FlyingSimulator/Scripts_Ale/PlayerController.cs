@@ -7,54 +7,64 @@ using System.Collections.Generic;
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] public Rigidbody rb;
-    [SerializeField] public GameObject camHolder;
+    [SerializeField] public Transform cam;
     [SerializeField] public float speed = 5f;
-    [SerializeField] public float sensitivity = 0.1f;
+    [SerializeField] public float turnSpeed = 720f;
     [SerializeField] public float maxForce = 10f;
     [SerializeField] public float jumpForce = 5f;
 
     [Header("Ground check")]
     [SerializeField] public float groundCheckDistance = 1.1f;
     [SerializeField] public LayerMask groundMask = ~0;
+    
     Vector2 move;
-    Vector2 look;
-    float lookRotation;
     bool jumpRequested;
 
     private void Start()
     {
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        if (cam == null)
+            cam = Camera.main.transform;
     }
 
-    public void OnMove(InputAction.CallbackContext Context)
+    public void OnMove(InputAction.CallbackContext context)
     {
-        move = Context.ReadValue<Vector2>();
+        move = context.ReadValue<Vector2>();
     }
-    public void OnLook(InputAction.CallbackContext Context)
+    public void OnJump(InputAction.CallbackContext context)
     {
-        look = Context.ReadValue<Vector2>();
-    }
-
-    public void OnJump(InputAction.CallbackContext Context)
-    {
-        if (Context.performed)
+        if (context.performed)
             jumpRequested = true;
     }
 
 
     private void FixedUpdate()
     {
-        Vector3 currentVelocity = rb.linearVelocity;
-        Vector3 targetVelocity = new Vector3(move.x, 0, move.y) * speed;
-        targetVelocity = transform.TransformDirection(targetVelocity);
+        Vector3 camForward = cam.forward;
+        camForward.y = 0;
+        camForward.Normalize();
 
-        Vector3 velocityChange = targetVelocity - currentVelocity;
+        Vector3 camRight = cam.right;
+        camRight.y = 0;
+        camRight.Normalize();
+
+        Vector3 moveDir = camForward * move.y + camRight * move.x;
+        moveDir = Vector3.ClampMagnitude(moveDir, 1f);
+
+
+
+
+
+        Vector3 targetVelocity = moveDir * speed;
+        Vector3 velocityChange = targetVelocity - rb.linearVelocity;
         velocityChange.y = 0;
         velocityChange = Vector3.ClampMagnitude(velocityChange, maxForce);
-
         rb.AddForce(velocityChange, ForceMode.VelocityChange);
-
+        
+        if (moveDir.sqrMagnitude > 0.001f)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(moveDir, Vector3.up);
+            rb.MoveRotation(Quaternion.RotateTowards(rb.rotation, targetRotation, turnSpeed * Time.fixedDeltaTime));
+        }
         if (jumpRequested && IsGrounded())
         {
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
@@ -67,13 +77,4 @@ public class PlayerController : MonoBehaviour
         return Physics.Raycast(transform.position, Vector3.down, groundCheckDistance, groundMask);
     }
 
-    private void LateUpdate()
-    {
-        transform.Rotate(Vector3.up * look.x * sensitivity);
-
-
-        lookRotation -= look.y * sensitivity;
-        lookRotation = Mathf.Clamp(lookRotation, -90f, 90f);
-        camHolder.transform.localEulerAngles = new Vector3(lookRotation, 0f, 0f);
-    }
 }
