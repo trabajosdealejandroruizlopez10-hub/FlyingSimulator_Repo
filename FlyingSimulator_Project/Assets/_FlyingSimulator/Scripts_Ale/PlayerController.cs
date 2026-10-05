@@ -148,67 +148,219 @@ public class PlayerController : MonoBehaviour
 
     private void CreateInputActions()
     {
-        moveAction = new
-            InputAction("Move")
+        moveAction = new InputAction("Move", InputActionType.Value);
+        moveAction.AddCompositeBinding("2DVector")
+            .With("Up", "<Keyboard>/w")
+            .With("Down", "<Keyboard>/s")
+            .With("Left", "<Keyboard>/a")
+            .With("Right", "<Keyboard>/d");
+        moveAction.AddCompositeBinding("2DVector")
+            .With("Up", "<Keyboard>/upArrow")
+            .With("Down", "<Keyboard>/downArrow")
+            .With("Left", "<Keyboard>/leftArrow")
+            .With("Right", "<Keyboard>/rightArrow");
+        moveAction.AddBinding("<Gamepad>/leftStick");
+
+        jumpAction = new InputAction("Jump", InputActionType.Button);
+        jumpAction.AddBinding("<Keyboard>/space");
+        jumpAction.AddBinding("<Gamepad>/buttonSouth");
+
+        sprintAction = new InputAction("Sprint", InputActionType.Button);
+        sprintAction.AddBinding("<Keyboard>/leftShift");
+        sprintAction.AddBinding("<Gamepad>/leftStickPress");
     }
-    Vector2 move;
-    bool jumpRequested;
 
-    private void Start()
+    private void OnJumpPerformed(InputAction.CallbackContext ctx)
     {
-        if (cam == null)
-            cam = Camera.main.transform;
+        jumpBufferCounter = jumpBufferTime;
     }
 
-    public void OnMove(InputAction.CallbackContext context)
+    private Vector3 GetCameraRelativeDirection(Vector2 input)
     {
-        move = context.ReadValue<Vector2>();
-    }
-    public void OnJump(InputAction.CallbackContext context)
-    {
-        if (context.performed)
-            jumpRequested = true;
-    }
+        Vector3 forward = Vector3.forward;
+        Vector3 right = Vector3.right;
 
-
-    private void FixedUpdate()
-    {
-        Vector3 camForward = cam.forward;
-        camForward.y = 0;
-        camForward.Normalize();
-
-        Vector3 camRight = cam.right;
-        camRight.y = 0;
-        camRight.Normalize();
-
-        Vector3 moveDir = camForward * move.y + camRight * move.x;
-        moveDir = Vector3.ClampMagnitude(moveDir, 1f);
-
-
-
-
-
-        Vector3 targetVelocity = moveDir * speed;
-        Vector3 velocityChange = targetVelocity - rb.linearVelocity;
-        velocityChange.y = 0;
-        velocityChange = Vector3.ClampMagnitude(velocityChange, maxForce);
-        rb.AddForce(velocityChange, ForceMode.VelocityChange);
-        
-        if (moveDir.sqrMagnitude > 0.001f)
+        if (cameraTransform != null)
         {
-            Quaternion targetRotation = Quaternion.LookRotation(moveDir, Vector3.up);
-            rb.MoveRotation(Quaternion.RotateTowards(rb.rotation, targetRotation, turnSpeed * Time.fixedDeltaTime));
+            forward = cameraTransform.forward;
+            right = cameraTransform.right;
+            forward.y = 0f;
+            right.y = 0f;
+            forward.Normalize();
+            right.Normalize();
         }
-        if (jumpRequested && IsGrounded())
-        {
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-        }
-        jumpRequested = false;
+
+        return forward * input.y + right * input.x;
     }
 
-    bool IsGrounded()
+    #endregion
+
+    #region Colisiones
+
+    private void OnCollisionEnter(Collision collision) => ProcessCollision(collision);
+    private void OnCollisionStay(Colision collision) => ProcessCollision(collision);
+
+    private void ProcessCollision(Collision collision)
     {
-        return Physics.Raycast(transform.position, Vector3.down, groundCheckDistance, groundMask);
+        for(int i = 0; i < collision.contactCount; i++)
+        {
+            Vector3 n = collision.GetContact(i).normal;
+            if (n.y < minGroundDot && n.y > -0,5)
+                pendingWalls.Add(n);
+        }
     }
 
+    private void ConsumeContacts()
+    {
+        IsGrounded = false;
+        groundNormal = Vector3.up;
+
+        if (groundIgnoreTimer <= 0f && Physics.CheckSphere(groundCheck.position, groundCheckRadius, groundMask,
+                                                            QueryTriggerInteraction.Ignore))
+        {
+            IdGrounded = true;
+
+            if (Physics.Raycast(groundCheck.position + Vector3.up * 0,1f, Vector3.down,
+                                out RaycastHit hit, groundCheckRadius + 0.3f, groundMask,
+                                QueryTriggerInteraction.Ignore))
+            {
+                if (hit.normal.y >= minGroundDot) groundNormal = hit.normal;
+                else IsGrounded = false;
+            }
+        }
+
+    activeWalls.Clear();
+    activeWalls.AddRange(pendingWalls);
+    pendingWalls.Clear();
+
+    #endregion
+
+    #region Lógica
+
+    private void UpdateTimers(float dt)
+{
+    groundIgnoreTimer -= dt;
+    jumpBufferCounter -= dt;
+
+    if (IsGrounded)
+    {
+        coyoteCounter = coyoteiTime;
+        airJumpsUsed = 0;
+    }
+    else
+    {
+        coyoteCounter -= dt;
+    }
+}
+    private void HandleJump(ref Vector3 vel)
+{
+    if (jumpBufferCounter <= 0f) return;
+
+    if (coyoteCounter > 0f)
+    {
+        float height = IsRunning ? runJumpHeight : walkJumpHeight;
+        vel.y = JumpSpeed(height);
+
+        coyoteCounter = 0f;
+        jumpBufferCounter = 0f;
+        groundIgnoreTimer = 0.1f;
+        IsGrounded = false;
+    }
+    else if (airJumpsUsed < maxAirJumps)
+    {
+        vel.y = JumpSpeed(doubleJumpHeight);
+
+        Vector3 horizontal = new Vector3(vel.x, 0f, vel.z);
+        if (horizontal.magnitude > 0.1f)
+        {
+            horizontal += horiozontal.normalized * doubleJumpForwardBoost;
+            horizontal = Vector3.ClampMagnitude(horizontal, maxAirSpeed);
+            vel.x = horizontal.x;
+            vel.z = horizontal.z;
+        }
+
+        airJumpsUsed++;
+        jumpBufferCounter = 0f;
+    }
+}
+
+private float JumpSpeed(float height)
+{
+    return Mathf.Sqrt(height * -2f * gravity);
+}
+
+private void HandleMovement(ref Vector3 vel, Vector3 moveDir, bool hasInput, float dt)
+{
+    float targetSpeed = IsRunning ? runSpeed : walkSpeed;
+
+    if (IsGrounded)
+    {
+        Vector3 target = Vector3.ProjectOnPlane(moveDir * targetSpeed, groundNormal);
+        vel = Vector3.MoveTowards(vel, target, groundAcceleration * dt);
+    }
+    else if (hasInput && airControl > 0f)
+    {
+        Vector3 horizontal = new Vector3(vel.x, 0f, vel.z);
+        float airTargetSpeed = Mathf.Max(horizontal.magnitude, targetSpeed);
+        Vector3 target = moveDir * Mathf.Min(airTargetSpeed, maxAirSpeed);
+
+        horizontal = Vector3.MoveTowards(horizontal, target, airAcceleration * airControl * dt);
+        vel.x = horizontal.x;
+        vel.z = horizontal.z;
+    }
+
+     private void ApplyGravity(ref Vector3 vel, float dt)
+{
+    if (IsGrounded) return;
+
+    vel.y += gravity * dt;
+    vel.y = Mathf.Max(vel.y, maxFallSpeed);
+}
+
+private void RemoveVelocityIntoWalls(ref Vector3 vel)
+{
+    for (int i = 0; i < activeWalls.Count; i++)
+    {
+        Vector3 flat = new Vector3(activeWalls[i].x, 0f, activeWalls[i].z);
+        if (flat.sqrMagnitude < 0.0001f) continue;
+        flat.Normalize();
+
+        float into = vel.x * flat.x + vel.z * flat.z;
+        if (into < 0f)
+        {
+            vel.x -= flat.x * into;
+            vel.z -= flat.z * into;
+        }
+    }
+}
+
+private void HandleRotation(Vector3 moveDir, Vector3 vel, float dt)
+{
+    Vector3 faceDir;
+
+    if (IsGrounded)
+    {
+        faceDir = moveDir;
+    }
+    else
+    {
+        faceDir = new Vector3(vel.x, 0f, vel.z);
+        if (faceDir.sqrMagnitude < 0.25f) return;
+    }
+
+    if (faceDir.sqrMagnitude < 0.001f) return;
+
+    Quaternion targetRot = Quaternion.LookRotation(faceDir, Vector3.up);
+    rb.MoveRotation(Quaternion.Slerp(rb.rotation, targetRot, rotationSpeed * dt));
+}
+
+#endregion
+
+
+    private void OnDrawGizmosSelected()
+        {
+            if (groundCheck == null) return;
+            Gizmos.color = Application.isPlaying && IsGrounded ? Color.green : Color.red;
+            Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+        }
 }
