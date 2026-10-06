@@ -440,9 +440,17 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: Nave
+      value: 
+      objectReference: {fileID: 1494090887}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: FlySpeed
       value: 25
       objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: SpeedText
+      value: 
+      objectReference: {fileID: 1978218859}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: YawAmount
       value: 45

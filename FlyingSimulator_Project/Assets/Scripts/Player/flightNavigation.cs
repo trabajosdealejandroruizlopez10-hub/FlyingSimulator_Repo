@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -10,6 +11,11 @@ public class AirplaneController : MonoBehaviour
     [SerializeField] float PitchAmount = 60;
     [SerializeField] GameObject Nave;
     private Rigidbody rb;
+
+    [SerializeField] TextMeshProUGUI SpeedText;
+
+    [SerializeField] float Speed = 0;
+
     // TURBO
     [SerializeField] float MaxTurboLevel = 5;
     [SerializeField] float TurboDecayTime = 2f;
@@ -24,9 +30,9 @@ public class AirplaneController : MonoBehaviour
 
     void Update()
     {
-        // =========================
+        
         // MOVIMIENTO
-        // =========================
+        
 
         // Yaw
         Yaw += moveInput.x * YawAmount * Time.deltaTime;
@@ -110,4 +116,17 @@ public class AirplaneController : MonoBehaviour
     {
         moveInput = context.ReadValue<Vector2>();
     }
+
+
+    private void Start()
+    {
+        rb = Nave.GetComponent<Rigidbody>();
+    }
+
+    private void FixedUpdate()
+    {
+        // Actualizar la velocidad en el UI
+        SpeedText.text = "Speed: " + (FlySpeed + turboLevel * 3f).ToString("F0") + " GB/S";
+    }
+
 }
