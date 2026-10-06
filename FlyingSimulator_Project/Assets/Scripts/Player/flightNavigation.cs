@@ -8,7 +8,8 @@ public class AirplaneController : MonoBehaviour
     [SerializeField] float FlySpeed = 5;
     [SerializeField] float YawAmount = 120;
     [SerializeField] float PitchAmount = 60;
-
+    [SerializeField] GameObject Nave;
+    private Rigidbody rb;
     // TURBO
     [SerializeField] float MaxTurboLevel = 5;
     [SerializeField] float TurboDecayTime = 2f;
@@ -18,7 +19,7 @@ public class AirplaneController : MonoBehaviour
 
     private float Yaw;
     private float Pitch;
-
+    
     private Vector2 moveInput;
 
     void Update()
@@ -71,7 +72,7 @@ public class AirplaneController : MonoBehaviour
         float currentSpeed = FlySpeed;
 
         // Cada nivel aumenta la velocidad
-        currentSpeed += turboLevel * 2f;
+        currentSpeed += turboLevel * 3f;
 
         transform.position += transform.forward * currentSpeed * Time.deltaTime;
     }
