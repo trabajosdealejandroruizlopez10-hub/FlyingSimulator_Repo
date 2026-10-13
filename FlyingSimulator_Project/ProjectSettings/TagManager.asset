@@ -8,10 +8,10 @@ TagManager:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - airplane
+  - Ground
   - Water
   - UI
-  - turboLevel
+  - Interactable
   - 
   - 
   - 
