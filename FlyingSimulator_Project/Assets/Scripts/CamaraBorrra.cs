@@ -43,9 +43,6 @@ public class AirCamera : MonoBehaviour
         if (player == null)
             return;
 
-        // --------------------------------
-        // 1. VELOCIDAD DEL JUGADOR
-        // --------------------------------
 
         Vector3 velocity = Vector3.zero;
 
@@ -63,10 +60,7 @@ public class AirCamera : MonoBehaviour
             movementDirection = player.forward;
 
 
-        // --------------------------------
-        // 2. POSICIÓN DE LA CÁMARA
-        // --------------------------------
-
+        
         Vector3 targetPosition =
             player.position
             - movementDirection * distance
@@ -79,9 +73,7 @@ public class AirCamera : MonoBehaviour
         );
 
 
-        // --------------------------------
-        // 3. PUNTO HACIA EL QUE MIRAMOS
-        // --------------------------------
+       
 
         Vector3 targetLook =
             player.position +
@@ -103,9 +95,7 @@ public class AirCamera : MonoBehaviour
         }
 
 
-        // --------------------------------
-        // 4. INCLINACIÓN AL GIRAR
-        // --------------------------------
+        
 
         float turnAmount = Vector3.SignedAngle(
             player.forward,
@@ -132,9 +122,6 @@ public class AirCamera : MonoBehaviour
         );
 
 
-        // --------------------------------
-        // 5. FOV SEGÚN VELOCIDAD
-        // --------------------------------
 
         if (cam != null)
         {

@@ -12,6 +12,14 @@ public class AirplaneController : MonoBehaviour
     [SerializeField] TextMeshProUGUI SpeedText;
     [SerializeField] float Speed = 0;
 
+    [Header("Aceleración del giro (grados/segundo²)")]
+    [Tooltip("Qué tan rápido alcanza la velocidad de giro máxima. Más alto = más reactivo")]
+    [SerializeField] float YawAcceleration = 300f;
+    [Tooltip("Qué tan rápido frena el giro al soltar el stick. Más bajo = más inercia")]
+    [SerializeField] float YawDeceleration = 250f;
+    [SerializeField] float PitchAcceleration = 200f;
+    [SerializeField] float PitchDeceleration = 180f;
+
     [Header("Turbo")]
     [SerializeField] float MaxTurboLevel = 5;
     [SerializeField] float TurboDecayTime = 0.5f;
@@ -55,6 +63,10 @@ public class AirplaneController : MonoBehaviour
     private float Pitch;
     private float currentRoll;
 
+    // Velocidades angulares actuales (grados/segundo)
+    private float yawVelocity;
+    private float pitchVelocity;
+
     // Input
     private Vector2 moveInput;
     private bool driftHeld = false;
@@ -94,12 +106,24 @@ public class AirplaneController : MonoBehaviour
             yawMultiplier = DriftYawMultiplier;
         }
 
+        // Velocidad de giro objetivo según el input
+        float targetYawVelocity = yawInput * YawAmount * yawMultiplier;
+        float targetPitchVelocity = -moveInput.y * PitchAmount;
+
+        // La velocidad actual se acerca a la objetivo con aceleración
+        yawVelocity = Accelerate(yawVelocity, targetYawVelocity, YawAcceleration, YawDeceleration);
+        pitchVelocity = Accelerate(pitchVelocity, targetPitchVelocity, PitchAcceleration, PitchDeceleration);
+
         // Yaw
-        Yaw += yawInput * YawAmount * yawMultiplier * Time.deltaTime;
+        Yaw += yawVelocity * Time.deltaTime;
 
         // Pitch
-        Pitch += -moveInput.y * PitchAmount * Time.deltaTime;
-        Pitch = Mathf.Clamp(Pitch, -80f, 80f);
+        Pitch += pitchVelocity * Time.deltaTime;
+
+        // Limitar pitch (y cortar la inercia al llegar al tope)
+        float clampedPitch = Mathf.Clamp(Pitch, -80f, 80f);
+        if (clampedPitch != Pitch) pitchVelocity = 0f;
+        Pitch = clampedPitch;
 
         // Roll visual (suavizado)
         float targetRoll = drifting
@@ -205,11 +229,23 @@ public class AirplaneController : MonoBehaviour
         }
     }
 
+    // Acerca 'current' a 'target' con aceleración (input activo) o deceleración (sin input)
+    private float Accelerate(float current, float target, float acceleration, float deceleration)
+    {
+        float rate = Mathf.Approximately(target, 0f) ? deceleration : acceleration;
+        return Mathf.MoveTowards(current, target, rate * Time.deltaTime);
+    }
+
     private static float Remap(float value, float inMin, float inMax, float outMin, float outMax)
     {
         return Mathf.Lerp(outMin, outMax, Mathf.InverseLerp(inMin, inMax, value));
     }
 
+    // =========================
+    // TURBO
+    // =========================
+
+    // Los aros siguen llamando a este método como antes
     public void AddTurbo()
     {
         AddTurbo(1);
@@ -240,6 +276,9 @@ public class AirplaneController : MonoBehaviour
         return driftTier;
     }
 
+    // =========================
+    // INPUT
+    // =========================
 
     public void OnMove(InputAction.CallbackContext context)
     {
