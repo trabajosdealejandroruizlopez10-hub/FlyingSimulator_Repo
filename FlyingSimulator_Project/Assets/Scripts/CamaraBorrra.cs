@@ -5,6 +5,8 @@ public class AirCamera : MonoBehaviour
     [Header("Jugador")]
     public Transform player;
     public Rigidbody playerRb;
+    [Tooltip("Se busca solo en el jugador si lo dejas vacío")]
+    public AirplaneController airplane;
 
     [Header("Posición")]
     public float distance = 8f;
@@ -36,6 +38,9 @@ public class AirCamera : MonoBehaviour
 
         if (cam != null)
             cam.fieldOfView = normalFOV;
+
+        if (airplane == null && player != null)
+            airplane = player.GetComponentInParent<AirplaneController>();
     }
 
     void LateUpdate()
@@ -43,6 +48,16 @@ public class AirCamera : MonoBehaviour
         if (player == null)
             return;
 
+        // Punto y orientación que sigue la cámara.
+        // Con el controlador: la nave SIN el desplazamiento ni la pirueta del flip.
+        Vector3 followPosition = player.position;
+        Vector3 shipForward = player.forward;
+
+        if (airplane != null)
+        {
+            followPosition = airplane.GetCameraTargetPosition();
+            shipForward = airplane.GetCameraTargetRotation() * Vector3.forward;
+        }
 
         Vector3 velocity = Vector3.zero;
 
@@ -57,12 +72,11 @@ public class AirCamera : MonoBehaviour
         if (speed > 0.1f)
             movementDirection = velocity.normalized;
         else
-            movementDirection = player.forward;
+            movementDirection = shipForward;
 
 
-        
         Vector3 targetPosition =
-            player.position
+            followPosition
             - movementDirection * distance
             + Vector3.up * height;
 
@@ -73,10 +87,8 @@ public class AirCamera : MonoBehaviour
         );
 
 
-       
-
         Vector3 targetLook =
-            player.position +
+            followPosition +
             movementDirection * lookAhead;
 
         Vector3 lookDirection =
@@ -95,10 +107,8 @@ public class AirCamera : MonoBehaviour
         }
 
 
-        
-
         float turnAmount = Vector3.SignedAngle(
-            player.forward,
+            shipForward,
             movementDirection,
             Vector3.up
         );
@@ -120,7 +130,6 @@ public class AirCamera : MonoBehaviour
             0f,
             currentTilt
         );
-
 
 
         if (cam != null)

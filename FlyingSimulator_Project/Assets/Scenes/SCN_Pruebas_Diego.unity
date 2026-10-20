@@ -846,7 +846,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: DriftRoll
-      value: 60
+      value: 75
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: SpeedText
@@ -854,11 +854,15 @@ PrefabInstance:
       objectReference: {fileID: 1978218859}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: YawAmount
-      value: 55
+      value: 60
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: PitchAmount
-      value: 50
+      value: 60
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: CameraTarget
+      value: 
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: MaxTurboLevel
@@ -870,7 +874,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: DriftControlMax
-      value: 1.2
+      value: 0.9
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: DriftControlMin
@@ -878,19 +882,55 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: YawAcceleration
-      value: 250
+      value: 300
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: YawDeceleration
+      value: 300
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: PitchAcceleration
-      value: 250
+      value: 300
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: PitchDeceleration
-      value: 250
+      value: 300
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipUpSettings.Speed
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipDownSettings.Speed
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipLeftSettings.Speed
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipRightSettings.Speed
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipUpSettings.Distance
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: DriftParticles.Array.size
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipDownSettings.Distance
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipLeftSettings.Distance
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipRightSettings.Distance
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: TierColors.Array.data[0].b
@@ -934,15 +974,23 @@ PrefabInstance:
       objectReference: {fileID: 816535277}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: 'DriftTierTimes.Array.data[0]'
-      value: 2
+      value: 0.8
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: 'DriftTierTimes.Array.data[1]'
-      value: 4
+      value: 2.5
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: 'DriftTierTimes.Array.data[2]'
-      value: 6
+      value: 4.5
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipUpSettings.ForwardDistance
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipDownSettings.ForwardDistance
+      value: 1.5
       objectReference: {fileID: 0}
     - target: {fileID: 326384859216693628, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_Layer
@@ -990,22 +1038,50 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_ActionEvents.Array.size
-      value: 2
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_ActionEvents.Array.data[1].m_ActionId
       value: 0a6c0faf-4743-4182-8d8e-d2e0d15a9ad5
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_ActionEvents.Array.data[2].m_ActionId
+      value: 3185a1c7-a694-4647-a86c-1e508ac2d918
+      objectReference: {fileID: 0}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_ActionEvents.Array.data[1].m_ActionName
       value: 'Gameplay/Drift[/Keyboard/space,/XInputControllerWindows/leftTrigger]'
+      objectReference: {fileID: 0}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_ActionEvents.Array.data[2].m_ActionName
+      value: 'Gameplay/Flips[/XInputControllerWindows/rightStick]'
+      objectReference: {fileID: 0}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_DeviceLostEvent.m_PersistentCalls.m_Calls.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_DeviceLostEvent.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.size
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_ActionEvents.Array.data[2].m_PersistentCalls.m_Calls.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_DeviceLostEvent.m_PersistentCalls.m_Calls.Array.data[0].m_CallState
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.data[0].m_Mode
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_ActionEvents.Array.data[2].m_PersistentCalls.m_Calls.Array.data[0].m_Mode
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
@@ -1013,7 +1089,15 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1494090893}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_ActionEvents.Array.data[2].m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1494090893}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.data[0].m_CallState
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_ActionEvents.Array.data[2].m_PersistentCalls.m_Calls.Array.data[0].m_CallState
       value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
@@ -1021,11 +1105,23 @@ PrefabInstance:
       value: OnDrift
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_ActionEvents.Array.data[2].m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: OnFlip
+      objectReference: {fileID: 0}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
       value: AirplaneController, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_ActionEvents.Array.data[2].m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: AirplaneController, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_ActionEvents.Array.data[1].m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
+    - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: m_ActionEvents.Array.data[2].m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
       value: UnityEngine.Object, UnityEngine
       objectReference: {fileID: 0}
     - target: {fileID: 3454860695277769383, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
@@ -1603,14 +1699,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AirCamera
   player: {fileID: 1416301608}
-  playerRb: {fileID: 0}
+  playerRb: {fileID: 1494090891}
+  airplane: {fileID: 1494090893}
   distance: 2.3
   height: 1.6
   lookAhead: 6
   positionSmooth: 6
   rotationSmooth: 8
   maxSpeed: 200
-  maxFOVIncrease: 12
+  maxFOVIncrease: 17.5
   maxTilt: 8
   tiltSmooth: 5
   normalFOV: 70
@@ -3081,7 +3178,7 @@ ParticleSystem:
   m_GameObject: {fileID: 816535276}
   serializedVersion: 8
   lengthInSec: 5
-  simulationSpeed: 1
+  simulationSpeed: 6.89
   stopAction: 0
   cullingMode: 0
   ringBufferMode: 0
@@ -3208,7 +3305,7 @@ ParticleSystem:
     startSpeed:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 5
+      scalar: 7.23
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -3643,14 +3740,14 @@ ParticleSystem:
         m_RotationOrder: 4
     randomizeRotationDirection: 0
     gravitySource: 0
-    maxNumParticles: 1000
+    maxNumParticles: 10989
     customEmitterVelocity: {x: 0, y: 0, z: 0}
     size3D: 0
     rotation3D: 0
     gravityModifier:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 0
+      scalar: -0.01
       minScalar: 0
       maxCurve:
         serializedVersion: 2
