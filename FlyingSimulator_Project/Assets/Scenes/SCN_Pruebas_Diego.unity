@@ -865,6 +865,14 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipCooldown
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipSlowdown
+      value: 0.167
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: MaxTurboLevel
       value: 6
       objectReference: {fileID: 0}
@@ -897,12 +905,16 @@ PrefabInstance:
       value: 300
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: FlipInputThreshold
+      value: 0.336
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: FlipUpSettings.Speed
-      value: 2
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: FlipDownSettings.Speed
-      value: 2
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: FlipLeftSettings.Speed
@@ -914,7 +926,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: FlipUpSettings.Distance
-      value: 2
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: DriftParticles.Array.size
@@ -922,7 +934,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: FlipDownSettings.Distance
-      value: 2
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: FlipLeftSettings.Distance
@@ -8217,7 +8229,7 @@ Transform:
   m_GameObject: {fileID: 893231300}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.2, y: -15, z: 22.8}
+  m_LocalPosition: {x: -1.01, y: -15.35, z: 22.8}
   m_LocalScale: {x: 25.873966, y: 0.56170493, z: 21.66335}
   m_ConstrainProportionsScale: 0
   m_Children: []
