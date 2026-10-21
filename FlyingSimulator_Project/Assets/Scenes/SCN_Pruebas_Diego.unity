@@ -1046,7 +1046,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_ActionEvents.Array.data[2].m_ActionId
-      value: 3185a1c7-a694-4647-a86c-1e508ac2d918
+      value: 58281191-2b09-488f-9159-a46e4713acbd
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_ActionEvents.Array.data[1].m_ActionName
@@ -1054,7 +1054,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_ActionEvents.Array.data[2].m_ActionName
-      value: 'Gameplay/Flips[/XInputControllerWindows/rightStick]'
+      value: 'Gameplay/Flip[/XInputControllerWindows/rightStick]'
       objectReference: {fileID: 0}
     - target: {fileID: 1011370929190675817, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: m_DeviceLostEvent.m_PersistentCalls.m_Calls.Array.size
