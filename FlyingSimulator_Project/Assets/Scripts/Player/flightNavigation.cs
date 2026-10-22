@@ -355,13 +355,11 @@ public class AirplaneController : MonoBehaviour
         return !isFlipping && flipCooldownTimer <= 0f;
     }
 
-    // =========================
-    // DRIFT
-    // =========================
+    
 
     private void HandleDrift()
     {
-        // Iniciar: botón pulsado + stick hacia un lado
+       
         if (driftHeld && !drifting && Mathf.Abs(moveInput.x) > DriftStartDeadzone)
         {
             drifting = true;
@@ -425,11 +423,6 @@ public class AirplaneController : MonoBehaviour
         }
     }
 
-    // =========================
-    // UTILIDADES
-    // =========================
-
-    // Acerca 'current' a 'target' con aceleración (input activo) o deceleración (sin input)
     private float Accelerate(float current, float target, float acceleration, float deceleration)
     {
         float rate = Mathf.Approximately(target, 0f) ? deceleration : acceleration;
@@ -445,7 +438,7 @@ public class AirplaneController : MonoBehaviour
     // TURBO
     // =========================
 
-    // Los aros siguen llamando a este método como antes
+    
     public void AddTurbo()
     {
         AddTurbo(1);

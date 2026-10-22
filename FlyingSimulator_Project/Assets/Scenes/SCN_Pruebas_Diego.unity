@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 2100000, guid: 6718d46d65634b249a0b41c6717540df, type: 2}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -1713,11 +1713,12 @@ MonoBehaviour:
   player: {fileID: 1416301608}
   playerRb: {fileID: 1494090891}
   airplane: {fileID: 1494090893}
-  distance: 2.3
+  distance: 4.2
   height: 1.6
   lookAhead: 6
   positionSmooth: 6
   rotationSmooth: 8
+  lagCompensation: 1
   maxSpeed: 200
   maxFOVIncrease: 17.5
   maxTilt: 8

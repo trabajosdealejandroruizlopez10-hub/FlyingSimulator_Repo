@@ -16,6 +16,9 @@ public class AirCamera : MonoBehaviour
     [Header("Suavizado")]
     public float positionSmooth = 6f;
     public float rotationSmooth = 8f;
+    [Tooltip("Anula el retraso al seguir a la nave (0 = cámara con retraso normal, 1 = sin retraso al avanzar)")]
+    [Range(0f, 1f)]
+    public float lagCompensation = 1f;
 
     [Header("Velocidad")]
     public float maxSpeed = 50f;
@@ -32,6 +35,10 @@ public class AirCamera : MonoBehaviour
     private Vector3 currentVelocity;
     private float currentTilt;
 
+    // Velocidad real de seguimiento (calculada por posición, no depende del Rigidbody)
+    private Vector3 lastFollowPosition;
+    private bool hasLastFollow = false;
+
     void Start()
     {
         cam = GetComponent<Camera>();
@@ -39,8 +46,15 @@ public class AirCamera : MonoBehaviour
         if (cam != null)
             cam.fieldOfView = normalFOV;
 
+        // Buscar el controlador: en el jugador, en sus padres y, si no, en toda la escena
         if (airplane == null && player != null)
             airplane = player.GetComponentInParent<AirplaneController>();
+
+        if (airplane == null)
+            airplane = FindFirstObjectByType<AirplaneController>();
+
+        if (airplane == null)
+            Debug.LogWarning("AirCamera: no encuentro el AirplaneController. Sin él, la cámara copiará la pirueta del flip.", this);
     }
 
     void LateUpdate()
@@ -49,7 +63,7 @@ public class AirCamera : MonoBehaviour
             return;
 
         // Punto y orientación que sigue la cámara.
-        // Con el controlador: la nave SIN el desplazamiento ni la pirueta del flip.
+        // Con el controlador: la nave SIN la pirueta del flip (la cámara nunca copia el giro del flip).
         Vector3 followPosition = player.position;
         Vector3 shipForward = player.forward;
 
@@ -75,8 +89,22 @@ public class AirCamera : MonoBehaviour
             movementDirection = shipForward;
 
 
+        // Velocidad real del punto que seguimos (por diferencia de posición entre frames)
+        Vector3 followVelocity = Vector3.zero;
+
+        if (hasLastFollow && Time.deltaTime > 0f)
+            followVelocity = (followPosition - lastFollowPosition) / Time.deltaTime;
+
+        lastFollowPosition = followPosition;
+        hasLastFollow = true;
+
+        // Un Lerp siempre se queda atrás una distancia de velocidad / suavizado.
+        // Adelantamos el objetivo justo esa distancia para que la cámara no se quede atrás.
+        Vector3 lagOffset = followVelocity * (lagCompensation / Mathf.Max(positionSmooth, 0.01f));
+
         Vector3 targetPosition =
             followPosition
+            + lagOffset
             - movementDirection * distance
             + Vector3.up * height;
 
