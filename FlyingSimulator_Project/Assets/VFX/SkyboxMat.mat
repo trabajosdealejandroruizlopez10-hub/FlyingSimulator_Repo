@@ -40,8 +40,8 @@ Material:
     m_Floats:
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _Speed: 0.06
-    - _Warp: 0.77
+    - _Speed: 0.3
+    - _Warp: 0.01
     m_Colors:
     - _Strech: {r: 1, g: 4, b: 0, a: 0}
   m_BuildTextureStacks: []
