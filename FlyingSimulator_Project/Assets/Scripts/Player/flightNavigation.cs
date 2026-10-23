@@ -234,8 +234,8 @@ public class AirplaneController : MonoBehaviour
         // =========================
         // VELOCIDAD
         // =========================
-
-        currentForwardSpeed = (FlySpeed + turboLevel * 3f) * flipSpeedMultiplier;
+        // CAMBIARPARADISTINTAVELOCIDADDETURBO
+        currentForwardSpeed = (FlySpeed + (turboLevel *1.3f) * 3f) * flipSpeedMultiplier;
         // El avance usa la orientación SIN la pirueta del flip, así el giro es solo visual
         Vector3 moveForward = Quaternion.Euler(Pitch, Yaw, 0f) * Vector3.forward;
         transform.position += moveForward * currentForwardSpeed * Time.deltaTime;
