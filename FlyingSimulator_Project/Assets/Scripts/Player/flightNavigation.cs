@@ -234,8 +234,8 @@ public class AirplaneController : MonoBehaviour
         // =========================
         // VELOCIDAD
         // =========================
-        // CAMBIARPARADISTINTAVELOCIDADDETURBO
-        currentForwardSpeed = (FlySpeed + (turboLevel *1.3f) * 3f) * flipSpeedMultiplier;
+
+        currentForwardSpeed = (FlySpeed + turboLevel * 3f) * flipSpeedMultiplier;
         // El avance usa la orientación SIN la pirueta del flip, así el giro es solo visual
         Vector3 moveForward = Quaternion.Euler(Pitch, Yaw, 0f) * Vector3.forward;
         transform.position += moveForward * currentForwardSpeed * Time.deltaTime;
@@ -355,11 +355,11 @@ public class AirplaneController : MonoBehaviour
         return !isFlipping && flipCooldownTimer <= 0f;
     }
 
-    
+
 
     private void HandleDrift()
     {
-       
+
         if (driftHeld && !drifting && Mathf.Abs(moveInput.x) > DriftStartDeadzone)
         {
             drifting = true;
@@ -438,7 +438,7 @@ public class AirplaneController : MonoBehaviour
     // TURBO
     // =========================
 
-    
+
     public void AddTurbo()
     {
         AddTurbo(1);
