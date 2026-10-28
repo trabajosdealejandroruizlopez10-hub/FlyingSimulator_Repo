@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
@@ -44,6 +45,12 @@ public class AirplaneController : MonoBehaviour
     [SerializeField] TextMeshProUGUI SpeedText;
     [SerializeField] float Speed = 0;
 
+    [Header("Controles")]
+    [Tooltip("Invierte el eje vertical del pilotaje (estilo avión: empujar hacia arriba = morro hacia abajo)")]
+    [SerializeField] bool InvertVerticalAxis = false;
+    [Tooltip("Invierte arriba/abajo en las piruetas (flips). Solo afecta a OnFlip, no a llamadas directas a TryFlip")]
+    [SerializeField] bool InvertFlipVertical = false;
+
     [Header("Aceleración del giro (grados/segundo²)")]
     [Tooltip("Qué tan rápido alcanza la velocidad de giro máxima. Más alto = más reactivo")]
     [SerializeField] float YawAcceleration = 300f;
@@ -52,9 +59,19 @@ public class AirplaneController : MonoBehaviour
     [SerializeField] float PitchAcceleration = 200f;
     [SerializeField] float PitchDeceleration = 180f;
 
+    [Header("Giro según la velocidad (a más velocidad, más cuesta girar)")]
+    [Tooltip("Velocidad a la que se considera el 100% (eje X de la curva). Por encima de este valor, se queda en el final de la curva")]
+    [SerializeField] float MaxSpeedForTurning = 20f;
+    [Tooltip("Eje X: 0 = velocidad base, 1 = velocidad máxima. Eje Y: multiplicador del giro (1 = giro normal, 0.5 = la mitad)")]
+    [SerializeField] AnimationCurve TurnMultiplierCurve = AnimationCurve.Linear(0f, 1f, 1f, 0.4f);
+    [Tooltip("Si está activado, el cabeceo (arriba/abajo) también se endurece con la velocidad")]
+    [SerializeField] bool ApplyToPitch = true;
+
     [Header("Turbo")]
+    [Tooltip("Máximo de niveles de turbo acumulables a la vez")]
     [SerializeField] float MaxTurboLevel = 5;
-    [SerializeField] float TurboDecayTime = 0.5f;
+    [Tooltip("Segundos que dura CADA unidad de turbo desde que se consigue, independiente de las demás")]
+    [SerializeField] float TurboLifetime = 3f;
 
     [Header("Drift")]
     [Tooltip("Multiplicador del giro mientras derrapas (más giro = más facilidad)")]
@@ -118,7 +135,9 @@ public class AirplaneController : MonoBehaviour
 
     // Turbo
     private float turboLevel = 0;
-    private float turboTimer = 0f;
+
+    // Cada unidad de turbo tiene su propio tiempo de vida restante (segundos)
+    private readonly List<float> turboCharges = new List<float>();
 
     // Rotación
     private float Yaw;
@@ -185,8 +204,12 @@ public class AirplaneController : MonoBehaviour
         }
 
         // Velocidad de giro objetivo y aceleración hacia ella
-        float targetYawVelocity = yawInput * YawAmount * yawMultiplier;
-        float targetPitchVelocity = -moveInput.y * PitchAmount;
+        // A más velocidad, más cuesta girar
+        float turnMultiplier = GetTurnMultiplier();
+
+        float targetYawVelocity = yawInput * YawAmount * yawMultiplier * turnMultiplier;
+        float verticalInput = InvertVerticalAxis ? -moveInput.y : moveInput.y;
+        float targetPitchVelocity = -verticalInput * PitchAmount * (ApplyToPitch ? turnMultiplier : 1f);
 
         yawVelocity = Accelerate(yawVelocity, targetYawVelocity, YawAcceleration, YawDeceleration);
         pitchVelocity = Accelerate(pitchVelocity, targetPitchVelocity, PitchAcceleration, PitchDeceleration);
@@ -217,19 +240,18 @@ public class AirplaneController : MonoBehaviour
                            * Quaternion.Euler(flipPitchOffset, 0f, flipRollOffset);
 
         // =========================
-        // TURBO (decaimiento)
+        // TURBO (cada unidad caduca por separado)
         // =========================
 
-        if (turboLevel > 0)
+        for (int i = turboCharges.Count - 1; i >= 0; i--)
         {
-            turboTimer -= Time.deltaTime;
+            turboCharges[i] -= Time.deltaTime;
 
-            if (turboTimer <= 0)
-            {
-                turboLevel--;
-                turboTimer = TurboDecayTime;
-            }
+            if (turboCharges[i] <= 0f)
+                turboCharges.RemoveAt(i);
         }
+
+        turboLevel = turboCharges.Count;
 
         // =========================
         // VELOCIDAD
@@ -355,11 +377,13 @@ public class AirplaneController : MonoBehaviour
         return !isFlipping && flipCooldownTimer <= 0f;
     }
 
-
+    // =========================
+    // DRIFT
+    // =========================
 
     private void HandleDrift()
     {
-
+        // Iniciar: botón pulsado + stick hacia un lado
         if (driftHeld && !drifting && Mathf.Abs(moveInput.x) > DriftStartDeadzone)
         {
             drifting = true;
@@ -423,10 +447,22 @@ public class AirplaneController : MonoBehaviour
         }
     }
 
+    // =========================
+    // UTILIDADES
+    // =========================
+
+    // Acerca 'current' a 'target' con aceleración (input activo) o deceleración (sin input)
     private float Accelerate(float current, float target, float acceleration, float deceleration)
     {
         float rate = Mathf.Approximately(target, 0f) ? deceleration : acceleration;
         return Mathf.MoveTowards(current, target, rate * Time.deltaTime);
+    }
+
+    // Multiplicador de giro (1 = normal) según la velocidad actual, definido por la curva del Inspector
+    public float GetTurnMultiplier()
+    {
+        float speedPercent = Mathf.InverseLerp(FlySpeed, Mathf.Max(MaxSpeedForTurning, FlySpeed + 0.01f), currentForwardSpeed);
+        return Mathf.Max(0f, TurnMultiplierCurve.Evaluate(speedPercent));
     }
 
     private static float Remap(float value, float inMin, float inMax, float outMin, float outMax)
@@ -438,7 +474,7 @@ public class AirplaneController : MonoBehaviour
     // TURBO
     // =========================
 
-
+    // Los aros siguen llamando a este método como antes
     public void AddTurbo()
     {
         AddTurbo(1);
@@ -446,14 +482,24 @@ public class AirplaneController : MonoBehaviour
 
     public void AddTurbo(int amount)
     {
-        turboLevel = Mathf.Clamp(turboLevel + amount, 0, MaxTurboLevel);
-        turboTimer = TurboDecayTime;
+        // Cada unidad nueva entra con su propia vida completa; no se acumulan por encima del máximo
+        int maxCharges = Mathf.RoundToInt(MaxTurboLevel);
+
+        for (int i = 0; i < amount && turboCharges.Count < maxCharges; i++)
+            turboCharges.Add(TurboLifetime);
+
+        turboLevel = turboCharges.Count;
         Debug.Log("Turbo Level: " + turboLevel);
     }
 
     public float GetTurboLevel()
     {
         return turboLevel;
+    }
+
+    public float GetMaxTurboLevel()
+    {
+        return MaxTurboLevel;
     }
 
     public bool IsDrifting()
@@ -515,7 +561,11 @@ public class AirplaneController : MonoBehaviour
         if (Mathf.Abs(input.x) > Mathf.Abs(input.y))
             direction = input.x > 0f ? FlipDirection.Right : FlipDirection.Left;
         else
-            direction = input.y > 0f ? FlipDirection.Up : FlipDirection.Down;
+        {
+            bool up = input.y > 0f;
+            if (InvertFlipVertical) up = !up;
+            direction = up ? FlipDirection.Up : FlipDirection.Down;
+        }
 
         TryFlip(direction);
     }

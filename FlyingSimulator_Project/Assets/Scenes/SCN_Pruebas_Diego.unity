@@ -23,7 +23,7 @@ RenderSettings:
   m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
   m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
   m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
-  m_AmbientIntensity: 1
+  m_AmbientIntensity: 0.95
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
   m_SkyboxMaterial: {fileID: 2100000, guid: 6718d46d65634b249a0b41c6717540df, type: 2}
@@ -1706,6 +1706,14 @@ PrefabInstance:
       value: 0.336
       objectReference: {fileID: 0}
     - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: InvertFlipVertical
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
+      propertyPath: InvertVerticalAxis
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -7138422490071219488, guid: d3986bdedb7f12e41b82da644fe9d759, type: 3}
       propertyPath: MaxSpeedForTurning
       value: 205.9
       objectReference: {fileID: 0}
@@ -3175,8 +3183,8 @@ MonoBehaviour:
   player: {fileID: 1416301608}
   playerRb: {fileID: 1494090891}
   airplane: {fileID: 1494090893}
-  distance: 4.2
-  height: 1.6
+  distance: 3.5
+  height: 1
   lookAhead: 6
   positionSmooth: 6
   rotationSmooth: 8
