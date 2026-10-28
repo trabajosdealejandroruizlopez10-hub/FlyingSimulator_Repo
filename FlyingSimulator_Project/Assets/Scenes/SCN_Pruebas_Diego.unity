@@ -3227,12 +3227,12 @@ MonoBehaviour:
     shake: 0.35
   boostFOVKick: 8
   vignetteColor: {r: 0.18867922, g: 0.18867922, b: 0.18867922, a: 1}
-  vignetteImpulseAlpha: 0.172
+  vignetteImpulseAlpha: 0.25
   vignetteInnerRadius: 0.5
   vignetteOuterRadius: 1.2
   impulseShake: 0.8
-  driftShakePerTier: 0.2
-  shakePositionAmount: 0.2
+  driftShakePerTier: 0.15
+  shakePositionAmount: 0.15
   shakeRotationAmount: 1.2
   shakeFrequency: 22
 --- !u!1001 &333201890
