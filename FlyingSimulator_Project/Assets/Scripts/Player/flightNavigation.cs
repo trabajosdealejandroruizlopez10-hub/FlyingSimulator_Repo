@@ -6,9 +6,7 @@ using TMPro;
 
 public class AirplaneController : MonoBehaviour
 {
-    // =========================
-    // TIPOS
-    // =========================
+    
 
     public enum FlipDirection { Up, Down, Left, Right }
 
@@ -33,9 +31,7 @@ public class AirplaneController : MonoBehaviour
         }
     }
 
-    // =========================
-    // INSPECTOR
-    // =========================
+    // cosikas
 
     [Header("Movimiento")]
     [SerializeField] float FlySpeed = 5;
@@ -73,6 +69,8 @@ public class AirplaneController : MonoBehaviour
     [Tooltip("Segundos que dura CADA unidad de turbo desde que se consigue, independiente de las demás")]
     [SerializeField] float TurboLifetime = 3f;
 
+
+
     [Header("Drift")]
     [Tooltip("Multiplicador del giro mientras derrapas (más giro = más facilidad)")]
     [SerializeField] float DriftYawMultiplier = 1.6f;
@@ -108,7 +106,7 @@ public class AirplaneController : MonoBehaviour
     [SerializeField] FlipSettings FlipRightSettings = new FlipSettings(8f, 35f, 360f, 0f);
     [Tooltip("Cuánto hay que empujar el stick (0-1) para disparar un flip")]
     [Range(0.1f, 1f)]
-    [SerializeField] float FlipInputThreshold = 0.8f;
+    [SerializeField] float FlipInputThreshold = 0f;
     [Tooltip("Segundos de espera tras terminar un flip antes de poder hacer otro")]
     [SerializeField] float FlipCooldown = 0.6f;
     [Tooltip("Cuánta velocidad hacia delante se pierde durante el flip (0 = nada, 0.25 = un 25%)")]
@@ -127,9 +125,7 @@ public class AirplaneController : MonoBehaviour
     [Tooltip("Qué tan rápido la cámara vuelve a centrarse en la nave al terminar el flip. Más bajo = más suave")]
     [SerializeField] float CameraRecoverSpeed = 4f;
 
-    // =========================
-    // ESTADO
-    // =========================
+    
 
     private Rigidbody rb;
 
@@ -171,7 +167,7 @@ public class AirplaneController : MonoBehaviour
     private Vector3 flipCameraOffset = Vector3.zero;
     private FlipSettings activeFlip;
 
-    // Velocidad real hacia delante (para UI)
+    // Velocidad real hacia delante
     private float currentForwardSpeed;
 
     private void Start()
@@ -185,16 +181,14 @@ public class AirplaneController : MonoBehaviour
     {
         HandleDrift();
 
-        // =========================
-        // MOVIMIENTO
-        // =========================
+        //mov
 
         float yawInput = moveInput.x;
         float yawMultiplier = 1f;
 
         if (drifting)
         {
-            // Siempre giras hacia el lado del drift; el stick solo decide cuánto cierras la curva.
+            // giro bloqueado hacia el lado del drift
             float control = (driftDirection == 1)
                 ? Remap(moveInput.x, -1f, 1f, DriftControlMin, DriftControlMax)
                 : Remap(moveInput.x, -1f, 1f, DriftControlMax, DriftControlMin);
@@ -203,8 +197,8 @@ public class AirplaneController : MonoBehaviour
             yawMultiplier = DriftYawMultiplier;
         }
 
-        // Velocidad de giro objetivo y aceleración hacia ella
-        // A más velocidad, más cuesta girar
+        // Vel de giro objetivo y aceleración
+        // A mas velocidad, más cuesta girar
         float turnMultiplier = GetTurnMultiplier();
 
         float targetYawVelocity = yawInput * YawAmount * yawMultiplier * turnMultiplier;
@@ -217,7 +211,7 @@ public class AirplaneController : MonoBehaviour
         Yaw += yawVelocity * Time.deltaTime;
         Pitch += pitchVelocity * Time.deltaTime;
 
-        // Limitar pitch (y cortar la inercia al llegar al tope)
+        // Limitar pitch 
         float clampedPitch = Mathf.Clamp(Pitch, -80f, 80f);
         if (clampedPitch != Pitch) pitchVelocity = 0f;
         Pitch = clampedPitch;
@@ -229,9 +223,7 @@ public class AirplaneController : MonoBehaviour
 
         currentRoll = Mathf.Lerp(currentRoll, targetRoll, RollSmooth * Time.deltaTime);
 
-        // =========================
-        // FLIP (desplazamiento + pirueta + frenada)
-        // =========================
+        //Flipcontrol
 
         HandleFlip();
 
@@ -239,9 +231,7 @@ public class AirplaneController : MonoBehaviour
         transform.rotation = Quaternion.Euler(Pitch, Yaw, currentRoll)
                            * Quaternion.Euler(flipPitchOffset, 0f, flipRollOffset);
 
-        // =========================
-        // TURBO (cada unidad caduca por separado)
-        // =========================
+        //tulbito 
 
         for (int i = turboCharges.Count - 1; i >= 0; i--)
         {
@@ -253,23 +243,17 @@ public class AirplaneController : MonoBehaviour
 
         turboLevel = turboCharges.Count;
 
-        // =========================
-        // VELOCIDAD
-        // =========================
-
-        currentForwardSpeed = (FlySpeed + turboLevel * 3f) * flipSpeedMultiplier;
+        //la sped
+        //CHANGE HERE: la velocidad base es FlySpeed, y cada nivel de turbo añade 2 unidades de velocidad extra. El multiplicador flipSpeedMultiplier reduce la velocidad durante el flip.
+        currentForwardSpeed = (FlySpeed + (turboLevel *1.3f)* 3f) * flipSpeedMultiplier;
         // El avance usa la orientación SIN la pirueta del flip, así el giro es solo visual
         Vector3 moveForward = Quaternion.Euler(Pitch, Yaw, 0f) * Vector3.forward;
         transform.position += moveForward * currentForwardSpeed * Time.deltaTime;
     }
 
-    // =========================
-    // FLIPS
-    // =========================
+    //losh flipsh
 
-    /// <summary>
-    /// Intenta hacer un flip en la dirección indicada. Devuelve false si está en cooldown o ya hay uno en curso.
-    /// </summary>
+    
     public bool TryFlip(FlipDirection direction)
     {
         if (isFlipping || flipCooldownTimer > 0f) return false;
@@ -377,9 +361,7 @@ public class AirplaneController : MonoBehaviour
         return !isFlipping && flipCooldownTimer <= 0f;
     }
 
-    // =========================
-    // DRIFT
-    // =========================
+    //drifteo
 
     private void HandleDrift()
     {
@@ -474,7 +456,7 @@ public class AirplaneController : MonoBehaviour
     // TURBO
     // =========================
 
-    // Los aros siguen llamando a este método como antes
+    
     public void AddTurbo()
     {
         AddTurbo(1);
