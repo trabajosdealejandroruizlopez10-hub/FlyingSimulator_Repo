@@ -243,7 +243,7 @@ public class AirplaneController : MonoBehaviour
 
         turboLevel = turboCharges.Count;
 
-        //la sped
+        //la sped nazjdedjwhqwqiwswdfrewedfgfrewfgfdssdfbngfdsdfghdfdsahgfdgfdsds
         //CHANGE HERE: la velocidad base es FlySpeed, y cada nivel de turbo añade 2 unidades de velocidad extra. El multiplicador flipSpeedMultiplier reduce la velocidad durante el flip.
         currentForwardSpeed = (FlySpeed + (turboLevel *1.3f)* 3f) * flipSpeedMultiplier;
         // El avance usa la orientación SIN la pirueta del flip, así el giro es solo visual
