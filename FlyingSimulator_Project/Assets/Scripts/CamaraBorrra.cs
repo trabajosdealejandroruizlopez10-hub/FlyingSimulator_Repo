@@ -119,6 +119,9 @@ public class AirCamera : MonoBehaviour
     private Vector3 lastFollowPosition;
     private bool hasLastFollow = false;
 
+    // Al reaparecer la cámara se coloca al instante, sin recorrer el mapa
+    private bool snapNextFrame = false;
+
     // Feedback
     private float lastTurbo = 0f;
     private float smoothedFOV = 0f;       // efectos del nivel de turbo actual (suavizados)
@@ -156,13 +159,26 @@ public class AirCamera : MonoBehaviour
             Debug.LogWarning("AirCamera: no encuentro el AirplaneController. Sin él, la cámara copiará la pirueta del flip y no habrá feedback de turbo.", this);
 
         if (airplane != null)
+        {
             lastTurbo = airplane.GetTurboLevel();
+            airplane.Respawned += HandleRespawn;
+        }
 
         CreateVignette();
     }
 
+    private void HandleRespawn()
+    {
+        snapNextFrame = true;
+        hasLastFollow = false;
+        currentTilt = 0f;
+    }
+
     void OnDestroy()
     {
+        if (airplane != null)
+            airplane.Respawned -= HandleRespawn;
+
         if (vignetteCanvas != null) Destroy(vignetteCanvas);
         if (vignetteTexture != null) Destroy(vignetteTexture);
     }
@@ -232,7 +248,7 @@ public class AirCamera : MonoBehaviour
         transform.position = Vector3.Lerp(
             transform.position,
             targetPosition,
-            positionSmooth * Time.deltaTime
+            snapNextFrame ? 1f : positionSmooth * Time.deltaTime
         );
 
 
@@ -251,7 +267,7 @@ public class AirCamera : MonoBehaviour
             transform.rotation = Quaternion.Slerp(
                 transform.rotation,
                 targetRotation,
-                rotationSmooth * Time.deltaTime
+                snapNextFrame ? 1f : rotationSmooth * Time.deltaTime
             );
         }
 
@@ -299,6 +315,8 @@ public class AirCamera : MonoBehaviour
                 fovSmooth * Time.deltaTime
             );
         }
+
+        snapNextFrame = false;
 
         UpdateVignette();
         ApplyShake();
