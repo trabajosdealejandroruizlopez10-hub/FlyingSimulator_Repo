@@ -77,6 +77,18 @@ public class AirplaneController : MonoBehaviour
     [Tooltip("Si está activado, el cabeceo (arriba/abajo) también se endurece con la velocidad")]
     [SerializeField] bool ApplyToPitch = true;
 
+    [Header("Velocidad según la inclinación (subir frena, bajar acelera)")]
+    [SerializeField] bool UseSlopeSpeed = true;
+    [Tooltip("Velocidad extra al ir en picado total (mirando 90° hacia abajo). A inclinaciones menores se aplica proporcionalmente")]
+    [SerializeField] float DiveSpeedGain = 6f;
+    [Tooltip("Velocidad que se pierde al ir en vertical hacia arriba (90°). A inclinaciones menores se aplica proporcionalmente")]
+    [SerializeField] float ClimbSpeedLoss = 4f;
+    [Tooltip("Qué tan rápido cambia la velocidad por la inclinación (unidades/segundo²). Más bajo = más sensación de inercia")]
+    [SerializeField] float SlopeAcceleration = 4f;
+    [Tooltip("La velocidad base nunca baja de este porcentaje de FlySpeed al subir")]
+    [Range(0f, 1f)]
+    [SerializeField] float MinSlopeSpeedFactor = 0.3f;
+
     [Header("Turbo")]
     [Tooltip("Máximo de niveles de turbo acumulables a la vez")]
     [SerializeField] float MaxTurboLevel = 5;
@@ -202,6 +214,7 @@ public class AirplaneController : MonoBehaviour
 
     // Velocidad real hacia delante (para UI)
     private float currentForwardSpeed;
+    private float slopeSpeedOffset = 0f;
 
     // Límites y respawn
     private readonly List<PathSample> pathHistory = new List<PathSample>();
@@ -300,7 +313,18 @@ public class AirplaneController : MonoBehaviour
         // VELOCIDAD
         // =========================
 
-        currentForwardSpeed = (FlySpeed + turboLevel * 3f) * flipSpeedMultiplier;
+        // Inclinación: sin(Pitch) es + al bajar el morro y - al subirlo
+        float slope = Mathf.Sin(Pitch * Mathf.Deg2Rad);
+        float targetSlopeOffset = 0f;
+
+        if (UseSlopeSpeed)
+            targetSlopeOffset = slope > 0f ? slope * DiveSpeedGain : slope * ClimbSpeedLoss;
+
+        slopeSpeedOffset = Mathf.MoveTowards(slopeSpeedOffset, targetSlopeOffset, SlopeAcceleration * Time.deltaTime);
+
+        float baseSpeed = Mathf.Max(FlySpeed + slopeSpeedOffset, FlySpeed * MinSlopeSpeedFactor);
+
+        currentForwardSpeed = (baseSpeed + turboLevel * 3f) * flipSpeedMultiplier;
         // El avance usa la orientación SIN la pirueta del flip, así el giro es solo visual
         Vector3 moveForward = Quaternion.Euler(Pitch, Yaw, 0f) * Vector3.forward;
         transform.position += moveForward * currentForwardSpeed * Time.deltaTime;
@@ -623,6 +647,7 @@ public class AirplaneController : MonoBehaviour
         // Cortar inercias y acciones en curso
         yawVelocity = 0f;
         pitchVelocity = 0f;
+        slopeSpeedOffset = 0f;
 
         isFlipping = false;
         flipRollOffset = 0f;
