@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine.Events;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
@@ -12,15 +11,6 @@ public class AirplaneController : MonoBehaviour
     // =========================
 
     public enum FlipDirection { Up, Down, Left, Right }
-
-    // Punto de la trayectoria guardado para el respawn
-    private struct PathSample
-    {
-        public float time;
-        public Vector3 position;
-        public float yaw;
-        public float pitch;
-    }
 
     [Serializable]
     public class FlipSettings
@@ -123,25 +113,6 @@ public class AirplaneController : MonoBehaviour
         new Color(0.8f, 0.3f, 1f)    // nivel 3 morado
     };
 
-    [Header("Límites del mapa (respawn)")]
-    [SerializeField] bool UseMapBounds = true;
-    [Tooltip("Capa de las mallas de los tubos (crea una, por ejemplo 'MapWall', y ponla en todos los tubos). Tocar la pared interior te hace reaparecer")]
-    [SerializeField] LayerMask MapWallLayers;
-    [Tooltip("Radio de la nave para detectar la pared (metros)")]
-    [SerializeField] float ShipRadius = 1f;
-    [Tooltip("Segundos entre tocar la pared y reaparecer")]
-    [SerializeField] float RespawnDelayAfterHit = 0.6f;
-    [Tooltip("Reaparece en el punto de tu trayectoria de hace estos segundos")]
-    [SerializeField] float RespawnSecondsBack = 10f;
-    [Tooltip("Cada cuántos segundos se guarda un punto de la trayectoria")]
-    [SerializeField] float PathSampleInterval = 0.2f;
-    [Tooltip("Si está activado, pierdes todo el turbo al reaparecer")]
-    [SerializeField] bool ClearTurboOnRespawn = true;
-    [Tooltip("Se dispara al salir del mapa (para avisos o sonido)")]
-    [SerializeField] UnityEvent OnLeftBoundsEvent;
-    [Tooltip("Se dispara al reaparecer (para fundidos o sonido)")]
-    [SerializeField] UnityEvent OnRespawnEvent;
-
     [Header("Flips (esquiva lateral/vertical con pirueta)")]
     [SerializeField] FlipSettings FlipUpSettings = new FlipSettings(6f, 30f, 360f, 1.5f);
     [SerializeField] FlipSettings FlipDownSettings = new FlipSettings(6f, 30f, 360f, 1.5f);
@@ -187,6 +158,17 @@ public class AirplaneController : MonoBehaviour
     private float yawVelocity;
     private float pitchVelocity;
 
+
+    //Colisión con obsta culos
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Obstacle"))
+        {
+            turboCharges.Clear();   // pierdes todo el turbo
+            turboLevel = 0;
+        }
+    }
+
     // Input
     private Vector2 moveInput;
     private bool driftHeld = false;
@@ -216,25 +198,11 @@ public class AirplaneController : MonoBehaviour
     private float currentForwardSpeed;
     private float slopeSpeedOffset = 0f;
 
-    // Límites y respawn
-    private readonly List<PathSample> pathHistory = new List<PathSample>();
-    private float pathSampleTimer = 0f;
-    private float lastInsideTime = 0f;
-    private float outsideTimer = 0f;
-    private bool isOutOfBounds = false;
-    private bool warnedEmptyHistory = false;
-    private Vector3 lastBoundsPosition;
-    private bool hasLastBoundsPosition = false;
-
-    // Lo escucha la cámara para colocarse al instante tras reaparecer
-    public event Action Respawned;
-
     private void Start()
     {
         rb = Nave.GetComponent<Rigidbody>();
         currentForwardSpeed = FlySpeed;
         SetDriftParticles(0);
-        InitBounds();
     }
 
     void Update()
@@ -328,12 +296,6 @@ public class AirplaneController : MonoBehaviour
         // El avance usa la orientación SIN la pirueta del flip, así el giro es solo visual
         Vector3 moveForward = Quaternion.Euler(Pitch, Yaw, 0f) * Vector3.forward;
         transform.position += moveForward * currentForwardSpeed * Time.deltaTime;
-
-        // =========================
-        // LÍMITES DEL MAPA
-        // =========================
-
-        HandleBounds();
     }
 
     // =========================
@@ -518,175 +480,6 @@ public class AirplaneController : MonoBehaviour
             main.startColor = TierColors[Mathf.Min(tier - 1, TierColors.Length - 1)];
             if (!ps.isPlaying) ps.Play();
         }
-    }
-
-    // =========================
-    // LÍMITES DEL MAPA / RESPAWN
-    // =========================
-
-    private void InitBounds()
-    {
-        lastInsideTime = Time.time;
-
-        if (UseMapBounds && MapWallLayers.value == 0)
-            Debug.LogWarning("AirplaneController: 'MapWallLayers' está vacío, así que el respawn por tocar la pared del mapa no hará nada.", this);
-    }
-
-    private void HandleBounds()
-    {
-        if (!UseMapBounds || MapWallLayers.value == 0) return;
-
-        // Ya tocaste la pared: cuenta atrás hasta reaparecer
-        if (isOutOfBounds)
-        {
-            outsideTimer += Time.deltaTime;
-
-            if (outsideTimer >= RespawnDelayAfterHit)
-                Respawn();
-            return;
-        }
-
-        if (TouchedWall())
-        {
-            isOutOfBounds = true;
-            outsideTimer = 0f;
-            OnLeftBoundsEvent?.Invoke();
-            return;
-        }
-
-        lastInsideTime = Time.time;
-
-        // Solo guardamos trayectoria mientras no tocas la pared: así el respawn siempre es un punto válido
-        pathSampleTimer -= Time.deltaTime;
-        if (pathSampleTimer <= 0f)
-        {
-            RecordPathSample();
-            pathSampleTimer = Mathf.Max(PathSampleInterval, 0.02f);
-        }
-    }
-
-    // ¿Está la nave tocando la pared interior de algún tubo?
-    private bool TouchedWall()
-    {
-        Vector3 position = transform.position;
-        bool hit = false;
-
-        // 1) Solape directo con la pared en la posición actual
-        if (Physics.CheckSphere(position, ShipRadius, MapWallLayers, QueryTriggerInteraction.Ignore))
-            hit = true;
-
-        // 2) Barrido desde el frame anterior, para no atravesar la pared a mucha velocidad (turbo, flips)
-        if (!hit && hasLastBoundsPosition)
-        {
-            Vector3 delta = position - lastBoundsPosition;
-            float distanceMoved = delta.magnitude;
-
-            if (distanceMoved > 0.001f &&
-                Physics.SphereCast(lastBoundsPosition, ShipRadius, delta / distanceMoved, out RaycastHit _,
-                                   distanceMoved, MapWallLayers, QueryTriggerInteraction.Ignore))
-                hit = true;
-        }
-
-        lastBoundsPosition = position;
-        hasLastBoundsPosition = true;
-        return hit;
-    }
-
-    private void RecordPathSample()
-    {
-        pathHistory.Add(new PathSample
-        {
-            time = Time.time,
-            position = transform.position,
-            yaw = Yaw,
-            pitch = Pitch
-        });
-
-        // Descartar lo que ya no hace falta, conservando siempre un punto anterior al margen de respawn
-        while (pathHistory.Count > 2 && pathHistory[1].time <= Time.time - RespawnSecondsBack)
-            pathHistory.RemoveAt(0);
-    }
-
-    private void Respawn()
-    {
-        if (pathHistory.Count == 0)
-        {
-            if (!warnedEmptyHistory)
-            {
-                Debug.LogWarning("AirplaneController: estás fuera del mapa y no hay trayectoria guardada. ¿Está bien colocado el collider de límites?", this);
-                warnedEmptyHistory = true;
-            }
-            return;
-        }
-
-        // El punto más reciente que sea al menos 'RespawnSecondsBack' anterior a tu salida
-        float targetTime = lastInsideTime - RespawnSecondsBack;
-        int index = 0;
-
-        for (int i = pathHistory.Count - 1; i >= 0; i--)
-        {
-            if (pathHistory[i].time <= targetTime)
-            {
-                index = i;
-                break;
-            }
-        }
-
-        PathSample sample = pathHistory[index];
-
-        // Olvidar la trayectoria posterior, que es la que te sacó del mapa
-        pathHistory.RemoveRange(index + 1, pathHistory.Count - index - 1);
-
-        // Posición y orientación
-        transform.position = sample.position;
-        Yaw = sample.yaw;
-        Pitch = sample.pitch;
-        currentRoll = 0f;
-        transform.rotation = Quaternion.Euler(Pitch, Yaw, 0f);
-
-        // Cortar inercias y acciones en curso
-        yawVelocity = 0f;
-        pitchVelocity = 0f;
-        slopeSpeedOffset = 0f;
-
-        isFlipping = false;
-        flipRollOffset = 0f;
-        flipPitchOffset = 0f;
-        flipCameraOffset = Vector3.zero;
-        flipSpeedMultiplier = 1f;
-        flipCooldownTimer = 0f;
-
-        drifting = false;
-        driftDirection = 0;
-        driftTime = 0f;
-        driftTier = 0;
-        SetDriftParticles(0);
-
-        if (ClearTurboOnRespawn)
-        {
-            turboCharges.Clear();
-            turboLevel = 0;
-        }
-
-        isOutOfBounds = false;
-        outsideTimer = 0f;
-        lastInsideTime = Time.time;
-        pathSampleTimer = 0f;
-        hasLastBoundsPosition = false;
-
-        OnRespawnEvent?.Invoke();
-        Respawned?.Invoke();
-    }
-
-    public bool IsOutOfBounds()
-    {
-        return isOutOfBounds;
-    }
-
-    // Segundos que quedan para reaparecer (0 si estás dentro). Útil para un aviso en pantalla
-    public float GetRespawnTimeLeft()
-    {
-        return isOutOfBounds ? Mathf.Max(0f, RespawnDelayAfterHit - outsideTimer) : 0f;
     }
 
     // =========================
