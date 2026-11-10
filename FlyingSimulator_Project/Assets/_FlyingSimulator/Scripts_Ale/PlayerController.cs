@@ -41,6 +41,11 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float gravity = -25f;
     [SerializeField] private float maxFallSpeed = -40f;
 
+    [Header("Dead & Respawn")]
+    [SerializeField] private Transform spawnPoint;
+
+
+
     public bool IsGrounded { get; private set; }
     public bool IsRunning { get; private set; }
     public float HorizontalSpeed
@@ -58,7 +63,7 @@ public class PlayerController : MonoBehaviour
 
     private Rigidbody rb;
     private CapsuleCollider capsule;
-
+    private PlayerController controller;
     private Vector2 moveInput;
     private bool sprintHeld;
 
@@ -71,9 +76,15 @@ public class PlayerController : MonoBehaviour
     private readonly List<Vector3> activeWalls = new List<Vector3>(4);
     private Vector3 groundNormal = Vector3.up;
     private float minGroundDot;
+    private float verticalVelocity;
     private readonly Collider[] groundHits = new Collider[8];
     #region Unity
 
+
+    private void Start()
+    {
+        controller = GetComponent<PlayerController>();
+    }
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -362,6 +373,20 @@ public class PlayerController : MonoBehaviour
 
     #endregion
 
+    #region Dead & Respawn
+    public void Die()
+    {
+        controller.enabled = false;
+        transform.position = spawnPoint.position;
+        verticalVelocity = 0f;
+        controller.enabled = true;
+    }
+
+
+
+
+
+    #endregion
     private void OnDrawGizmosSelected()
     {
         if (groundCheck == null) return;
