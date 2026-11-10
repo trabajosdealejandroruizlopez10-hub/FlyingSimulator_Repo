@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine.Events;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
@@ -113,6 +114,35 @@ public class AirplaneController : MonoBehaviour
         new Color(0.8f, 0.3f, 1f)    // nivel 3 morado
     };
 
+    [Header("Colisión con edificios")]
+    [SerializeField] bool UseObstacleCollision = true;
+    [Tooltip("Tag que deben tener los objetos que bloquean a la nave")]
+    [SerializeField] string ObstacleTag = "Obstacle";
+    [Tooltip("Capas que se comprueban. Déjalo en Everything salvo que quieras excluir alguna")]
+    [SerializeField] LayerMask ObstacleLayers = ~0;
+    [Tooltip("Tamaño de la nave para chocar (metros). Se dibuja en la escena al seleccionarla")]
+    [SerializeField] float ShipRadius = 1f;
+    [Tooltip("Margen que la nave deja con la pared, para no quedar pegada o dentro")]
+    [SerializeField] float SkinWidth = 0.05f;
+    [Tooltip("0 = rozar la pared, 1 = chocar de frente. Por debajo de este valor solo se desliza sin penalización")]
+    [Range(0f, 1f)]
+    [SerializeField] float CrashMinImpact = 0.35f;
+    [Tooltip("Si está activado, al chocar de frente rebotas como una bola (ángulo de salida = ángulo de entrada). Si no, te deslizas por la pared")]
+    [SerializeField] bool BounceOnCrash = true;
+    [Tooltip("Segundos mínimos entre dos choques (evita repetir el efecto mientras rozas una pared)")]
+    [SerializeField] float CrashCooldown = 0.4f;
+    [Tooltip("Si está activado, pierdes todo el turbo al chocar")]
+    [SerializeField] bool CrashClearsTurbo = true;
+    [Tooltip("Multiplicador de velocidad justo tras el choque (0.25 = vas al 25%)")]
+    [Range(0f, 1f)]
+    [SerializeField] float CrashSpeedMultiplier = 0.25f;
+    [Tooltip("Qué tan rápido recuperas la velocidad tras el choque (multiplicador/segundo)")]
+    [SerializeField] float CrashRecoverRate = 1.5f;
+    [Tooltip("Escribe en la consola con qué objeto has chocado (útil para depurar)")]
+    [SerializeField] bool LogCrashes = false;
+    [Tooltip("Se dispara al chocar de frente (sonido, partículas, etc.)")]
+    [SerializeField] UnityEvent OnCrashEvent;
+
     [Header("Flips (esquiva lateral/vertical con pirueta)")]
     [SerializeField] FlipSettings FlipUpSettings = new FlipSettings(6f, 30f, 360f, 1.5f);
     [SerializeField] FlipSettings FlipDownSettings = new FlipSettings(6f, 30f, 360f, 1.5f);
@@ -158,17 +188,6 @@ public class AirplaneController : MonoBehaviour
     private float yawVelocity;
     private float pitchVelocity;
 
-
-    //Colisión con obsta culos
-    private void OnTriggerEnter(Collider other)
-    {
-        if (other.CompareTag("Obstacle"))
-        {
-            turboCharges.Clear();   // pierdes todo el turbo
-            turboLevel = 0;
-        }
-    }
-
     // Input
     private Vector2 moveInput;
     private bool driftHeld = false;
@@ -198,11 +217,22 @@ public class AirplaneController : MonoBehaviour
     private float currentForwardSpeed;
     private float slopeSpeedOffset = 0f;
 
+    // Colisión con edificios
+    private Vector3 lastSafePosition;
+    private float lastCrashTime = -999f;
+    private float crashSpeedMultiplier = 1f;
+    private readonly RaycastHit[] obstacleHits = new RaycastHit[16];
+    private readonly Collider[] overlapBuffer = new Collider[16];
+
+    // Lo escucha la cámara para hacer temblar la pantalla (recibe la normal de la pared)
+    public event Action<Vector3> Crashed;
+
     private void Start()
     {
         rb = Nave.GetComponent<Rigidbody>();
         currentForwardSpeed = FlySpeed;
         SetDriftParticles(0);
+        lastSafePosition = transform.position;
     }
 
     void Update()
@@ -292,10 +322,12 @@ public class AirplaneController : MonoBehaviour
 
         float baseSpeed = Mathf.Max(FlySpeed + slopeSpeedOffset, FlySpeed * MinSlopeSpeedFactor);
 
-        currentForwardSpeed = (baseSpeed + turboLevel * 3f) * flipSpeedMultiplier;
+        crashSpeedMultiplier = Mathf.MoveTowards(crashSpeedMultiplier, 1f, CrashRecoverRate * Time.deltaTime);
+
+        currentForwardSpeed = (baseSpeed + turboLevel * 3f) * flipSpeedMultiplier * crashSpeedMultiplier;
         // El avance usa la orientación SIN la pirueta del flip, así el giro es solo visual
         Vector3 moveForward = Quaternion.Euler(Pitch, Yaw, 0f) * Vector3.forward;
-        transform.position += moveForward * currentForwardSpeed * Time.deltaTime;
+        MoveWithCollision(moveForward * currentForwardSpeed * Time.deltaTime, true);
     }
 
     // =========================
@@ -380,8 +412,9 @@ public class AirplaneController : MonoBehaviour
         float forwardStep = activeFlip.ForwardDistance * (step / activeFlip.Distance);
         Vector3 movement = flipWorldDirection * step + flipForwardDirection * forwardStep;
 
-        transform.position += movement;
-        flipCameraOffset += movement;
+        // Se mueve respetando las paredes; la cámara solo sigue lo que de verdad te has movido
+        Vector3 moved = MoveWithCollision(movement);
+        flipCameraOffset += moved;
         flipTravelled += step;
 
         // Pirueta sincronizada con el desplazamiento
@@ -480,6 +513,164 @@ public class AirplaneController : MonoBehaviour
             main.startColor = TierColors[Mathf.Min(tier - 1, TierColors.Length - 1)];
             if (!ps.isPlaying) ps.Play();
         }
+    }
+
+    // =========================
+    // COLISIÓN CON EDIFICIOS
+    // =========================
+
+    // Mueve la nave 'delta' sin atravesar nada con el tag de obstáculo. Devuelve lo que se ha movido de verdad.
+    // Se lanza una esfera en la dirección del movimiento; si choca, la nave se queda pegada a la pared y
+    // lo que le sobra de movimiento:
+    //  - en un choque de frente con 'allowBounce': rebota como una bola (se refleja contra la pared y la nave gira hacia ahí)
+    //  - en un roce, o si no hay rebote: se desvía a lo largo de la pared (deslizar)
+    private Vector3 MoveWithCollision(Vector3 delta, bool allowBounce = false)
+    {
+        Vector3 startPosition = transform.position;
+
+        if (!UseObstacleCollision || delta.sqrMagnitude < 0.0000001f)
+        {
+            transform.position += delta;
+            return delta;
+        }
+
+        Vector3 position = startPosition;
+        Vector3 remaining = delta;
+
+        // Hasta 3 rebotes por frame (esquinas)
+        for (int i = 0; i < 3 && remaining.sqrMagnitude > 0.0000001f; i++)
+        {
+            float distance = remaining.magnitude;
+            Vector3 direction = remaining / distance;
+
+            // Si no hay nada en el camino (contando el margen), nos movemos entero
+            if (!CastObstacle(position, direction, distance + SkinWidth, out RaycastHit hit))
+            {
+                position += remaining;
+                break;
+            }
+
+            // Avanzar hasta la pared, dejando un margen
+            float travel = Mathf.Max(0f, hit.distance - SkinWidth);
+            position += direction * travel;
+
+            // ¿Choque de frente o roce? (1 = de frente, 0 = paralelo a la pared)
+            float impact = Vector3.Dot(-direction, hit.normal);
+            bool headOn = impact >= CrashMinImpact;
+
+            if (headOn)
+                RegisterCrash(hit);
+
+            float leftDistance = distance - travel;
+
+            if (headOn && allowBounce && BounceOnCrash)
+            {
+                // Rebote: la dirección se refleja contra la pared, como una bola contra una pared plana
+                Vector3 reflected = Vector3.Reflect(direction, hit.normal);
+                ApplyBounceHeading(reflected);
+                remaining = reflected * leftDistance;
+            }
+            else
+            {
+                // Deslizar: lo que queda de movimiento se desvía a lo largo de la pared
+                remaining = Vector3.ProjectOnPlane(direction * leftDistance, hit.normal);
+            }
+        }
+
+        // Red de seguridad: si por una esquina has acabado dentro de algo, vuelves al último sitio válido
+        if (OverlapsObstacle(position))
+            position = lastSafePosition;
+        else
+            lastSafePosition = position;
+
+        transform.position = position;
+        return position - startPosition;
+    }
+
+    // Orienta la nave (Yaw y Pitch) hacia la dirección del rebote
+    private void ApplyBounceHeading(Vector3 direction)
+    {
+        direction.Normalize();
+
+        // forward = (sin(yaw)·cos(pitch), -sin(pitch), cos(yaw)·cos(pitch)); en este juego, Pitch positivo = morro abajo
+        Yaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+        Pitch = Mathf.Clamp(-Mathf.Asin(Mathf.Clamp(direction.y, -1f, 1f)) * Mathf.Rad2Deg, -80f, 80f);
+
+        // Cortar la inercia del giro para que no pelee con el rebote
+        yawVelocity = 0f;
+        pitchVelocity = 0f;
+    }
+
+    private bool IsObstacle(Collider collider)
+    {
+        return collider != null && (string.IsNullOrEmpty(ObstacleTag) || collider.CompareTag(ObstacleTag));
+    }
+
+    // Lanza una esfera y devuelve el obstáculo más cercano (ignora triggers como los aros)
+    private bool CastObstacle(Vector3 origin, Vector3 direction, float distance, out RaycastHit best)
+    {
+        best = default;
+        float bestDistance = float.MaxValue;
+        bool found = false;
+
+        int count = Physics.SphereCastNonAlloc(origin, ShipRadius, direction, obstacleHits, distance,
+                                               ObstacleLayers, QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit candidate = obstacleHits[i];
+
+            if (!IsObstacle(candidate.collider)) continue;
+
+            if (candidate.distance < bestDistance)
+            {
+                bestDistance = candidate.distance;
+                best = candidate;
+                found = true;
+            }
+        }
+
+        return found;
+    }
+
+    private bool OverlapsObstacle(Vector3 position)
+    {
+        int count = Physics.OverlapSphereNonAlloc(position, ShipRadius * 0.95f, overlapBuffer,
+                                                  ObstacleLayers, QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < count; i++)
+        {
+            if (IsObstacle(overlapBuffer[i]))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void RegisterCrash(RaycastHit hit)
+    {
+        if (Time.time < lastCrashTime + CrashCooldown) return;
+        lastCrashTime = Time.time;
+
+        if (CrashClearsTurbo)
+        {
+            turboCharges.Clear();
+            turboLevel = 0;
+        }
+
+        crashSpeedMultiplier = CrashSpeedMultiplier;
+
+        if (LogCrashes)
+            Debug.Log("AirplaneController: choque con '" + hit.collider.name + "'", hit.collider);
+
+        OnCrashEvent?.Invoke();
+        Crashed?.Invoke(hit.normal);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = new Color(1f, 0.3f, 0.2f, 0.6f);
+        Gizmos.DrawWireSphere(transform.position, ShipRadius);
     }
 
     // =========================

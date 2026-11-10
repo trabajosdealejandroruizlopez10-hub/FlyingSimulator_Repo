@@ -110,6 +110,11 @@ public class AirCamera : MonoBehaviour
     public float shakeRotationAmount = 1.2f;
     [Tooltip("Velocidad del temblor. Más alto = más vibración")]
     public float shakeFrequency = 22f;
+    [Range(0f, 1f)]
+    [Tooltip("Intensidad del temblor al chocar contra un edificio")]
+    public float crashShakeAmount = 1f;
+    [Tooltip("Qué tan rápido se calma el temblor del choque (por segundo)")]
+    public float crashShakeDecay = 2.5f;
 
     private Camera cam;
     private Vector3 currentVelocity;
@@ -126,6 +131,7 @@ public class AirCamera : MonoBehaviour
     private float smoothedVignette = 0f;
     private float smoothedShake = 0f;
     private float impulse = 0f;           // 0-1 golpe inicial al coger turbo
+    private float crashShake = 0f;        // 0-1 temblor del último choque
     private float shakeIntensity = 0f;
     private float vignetteAlpha = 0f;
 
@@ -156,13 +162,24 @@ public class AirCamera : MonoBehaviour
             Debug.LogWarning("AirCamera: no encuentro el AirplaneController. Sin él, la cámara copiará la pirueta del flip y no habrá feedback de turbo.", this);
 
         if (airplane != null)
+        {
             lastTurbo = airplane.GetTurboLevel();
+            airplane.Crashed += HandleCrash;
+        }
 
         CreateVignette();
     }
 
+    private void HandleCrash(Vector3 normal)
+    {
+        crashShake = Mathf.Clamp01(crashShakeAmount);
+    }
+
     void OnDestroy()
     {
+        if (airplane != null)
+            airplane.Crashed -= HandleCrash;
+
         if (vignetteCanvas != null) Destroy(vignetteCanvas);
         if (vignetteTexture != null) Destroy(vignetteTexture);
     }
@@ -364,6 +381,10 @@ public class AirCamera : MonoBehaviour
             shakeIntensity = 0f;
             vignetteAlpha = 0f;
         }
+
+        // El temblor del choque funciona siempre, aunque el feedback de turbo esté desactivado
+        crashShake = Mathf.MoveTowards(crashShake, 0f, crashShakeDecay * dt);
+        shakeIntensity = Mathf.Clamp01(shakeIntensity + crashShake);
     }
 
     private float SmoothToward(float current, float target, float dt)
