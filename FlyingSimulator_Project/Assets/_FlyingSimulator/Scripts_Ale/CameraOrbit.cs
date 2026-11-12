@@ -1,17 +1,19 @@
+
 using UnityEngine;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine.InputSystem;
 
 public class CameraOrbit : MonoBehaviour
 {
-    [Header("Obetico")]
+    [Header("Objetivo")]
     [SerializeField] Transform target;
     [SerializeField] float height = 1.6f;
 
     [Header("Órbita")]
     [SerializeField] float distance = 5f;
-    [SerializeField] float sensitivity = 0.1f;
+
+    [SerializeField] float mouseSensitivity = 0.1f;
+    [SerializeField] float controllerSensitivity = 180f;
+
     [SerializeField] float minPitch = -30f;
     [SerializeField] float maxPitch = 70f;
 
@@ -24,27 +26,38 @@ public class CameraOrbit : MonoBehaviour
     float yaw;
     float pitch = 15f;
 
+    bool usingGamepad;
 
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
-        if (target !=null)
+        if (target != null)
             yaw = target.eulerAngles.y;
     }
 
     public void OnLook(InputAction.CallbackContext context)
     {
         look = context.ReadValue<Vector2>();
+
+        if (context.control != null)
+        {
+            usingGamepad = context.control.device is Gamepad;
+        }
     }
 
     void LateUpdate()
     {
         if (target == null) return;
 
+        float sensitivity = usingGamepad
+            ? controllerSensitivity * Time.deltaTime
+            : mouseSensitivity;
+
         yaw += look.x * sensitivity;
         pitch -= look.y * sensitivity;
+
         pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
 
         Quaternion rotation = Quaternion.Euler(pitch, yaw, 0);
@@ -53,8 +66,14 @@ public class CameraOrbit : MonoBehaviour
         Vector3 direction = rotation * Vector3.back;
         float finalDistance = distance;
 
-
-        if (Physics.SphereCast(pivot, collisionRadius, direction, out RaycastHit hit, distance, collisionMask, QueryTriggerInteraction.Ignore))
+        if (Physics.SphereCast(
+            pivot,
+            collisionRadius,
+            direction,
+            out RaycastHit hit,
+            distance,
+            collisionMask,
+            QueryTriggerInteraction.Ignore))
         {
             finalDistance = Mathf.Max(hit.distance, minDistance);
         }
