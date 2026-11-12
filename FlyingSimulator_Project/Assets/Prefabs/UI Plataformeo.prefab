@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 2612917751353715595}
   - component: {fileID: 2062321462005474833}
   m_Layer: 0
-  m_Name: UI
+  m_Name: UI Plataformeo
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
