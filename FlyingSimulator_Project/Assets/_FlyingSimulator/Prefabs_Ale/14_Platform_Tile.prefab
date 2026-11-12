@@ -1,0 +1,98 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &4838103284881984816
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -15.48
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 205.79
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: a7406209856405a47a68d00c66e3d3b6, type: 2}
+    - target: {fileID: 919132149155446097, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_Name
+      value: 14_Platform_Tile
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      propertyPath: m_Layer
+      value: 3
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects:
+    - {fileID: -4993850861593675443, guid: 618a44574c04a4542badbf2822852962, type: 3}
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 618a44574c04a4542badbf2822852962, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4252656367281990651}
+  m_SourcePrefab: {fileID: 100100000, guid: 618a44574c04a4542badbf2822852962, type: 3}
+--- !u!1 &5757021562918645857 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 618a44574c04a4542badbf2822852962, type: 3}
+  m_PrefabInstance: {fileID: 4838103284881984816}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &4252656367281990651
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5757021562918645857}
+  m_Material: {fileID: 13400000, guid: e604f5029c370654ca0e40655ed0dc8a, type: 2}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -2568837198080781586, guid: 618a44574c04a4542badbf2822852962, type: 3}
