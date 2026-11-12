@@ -124,11 +124,19 @@ public class AirplaneController : MonoBehaviour
     [SerializeField] float ShipRadius = 1f;
     [Tooltip("Margen que la nave deja con la pared, para no quedar pegada o dentro")]
     [SerializeField] float SkinWidth = 0.05f;
-    [Tooltip("0 = rozar la pared, 1 = chocar de frente. Por debajo de este valor solo se desliza sin penalización")]
+    [Tooltip("Ángulo (grados) entre tu dirección y la pared hasta el cual solo te deslizas. Por encima es un choque (rebote, pierdes turbo...). Más alto = más margen para deslizar")]
+    [Range(0f, 90f)]
+    [SerializeField] float SlideMaxAngle = 45f;
+    [Tooltip("Multiplicador de velocidad mientras rozas una pared (0.65 = vas al 65%). Nunca frena más que un choque")]
     [Range(0f, 1f)]
-    [SerializeField] float CrashMinImpact = 0.35f;
-    [Tooltip("Si está activado, al chocar de frente rebotas como una bola (ángulo de salida = ángulo de entrada). Si no, te deslizas por la pared")]
+    [SerializeField] float SlideSpeedMultiplier = 0.65f;
+    [Tooltip("Segundos que tardas en recuperar la velocidad al dejar de rozar la pared")]
+    [SerializeField] float SlideRecoverTime = 0.6f;
+    [Tooltip("Si está activado, al chocar de frente la nave se desvía de la pared. Si no, te deslizas por ella")]
     [SerializeField] bool BounceOnCrash = true;
+    [Tooltip("Ángulo máximo (grados) con el que sales de la pared tras chocar. 0 = solo deslizas; 90 = rebote completo contra la pared. Si chocas con menos ángulo que este valor, sales con el mismo ángulo con el que entraste")]
+    [Range(0f, 90f)]
+    [SerializeField] float BounceAngle = 25f;
     [Tooltip("Segundos mínimos entre dos choques (evita repetir el efecto mientras rozas una pared)")]
     [SerializeField] float CrashCooldown = 0.4f;
     [Tooltip("Si está activado, pierdes todo el turbo al chocar")]
@@ -136,8 +144,8 @@ public class AirplaneController : MonoBehaviour
     [Tooltip("Multiplicador de velocidad justo tras el choque (0.25 = vas al 25%)")]
     [Range(0f, 1f)]
     [SerializeField] float CrashSpeedMultiplier = 0.25f;
-    [Tooltip("Qué tan rápido recuperas la velocidad tras el choque (multiplicador/segundo)")]
-    [SerializeField] float CrashRecoverRate = 1.5f;
+    [Tooltip("Segundos que tardas en recuperar la velocidad normal tras un choque")]
+    [SerializeField] float CrashSlowdownDuration = 2.5f;
     [Tooltip("Escribe en la consola con qué objeto has chocado (útil para depurar)")]
     [SerializeField] bool LogCrashes = false;
     [Tooltip("Se dispara al chocar de frente (sonido, partículas, etc.)")]
@@ -221,6 +229,8 @@ public class AirplaneController : MonoBehaviour
     private Vector3 lastSafePosition;
     private float lastCrashTime = -999f;
     private float crashSpeedMultiplier = 1f;
+    private float scrapeSpeedMultiplier = 1f;   // frenada al rozar una pared
+    private bool scrapedThisFrame = false;
     private readonly RaycastHit[] obstacleHits = new RaycastHit[16];
     private readonly Collider[] overlapBuffer = new Collider[16];
 
@@ -322,9 +332,23 @@ public class AirplaneController : MonoBehaviour
 
         float baseSpeed = Mathf.Max(FlySpeed + slopeSpeedOffset, FlySpeed * MinSlopeSpeedFactor);
 
-        crashSpeedMultiplier = Mathf.MoveTowards(crashSpeedMultiplier, 1f, CrashRecoverRate * Time.deltaTime);
+        // La velocidad vuelve a la normalidad de forma lineal durante CrashSlowdownDuration segundos
+        float crashRecoverRate = (1f - CrashSpeedMultiplier) / Mathf.Max(CrashSlowdownDuration, 0.01f);
+        crashSpeedMultiplier = Mathf.MoveTowards(crashSpeedMultiplier, 1f, crashRecoverRate * Time.deltaTime);
 
-        currentForwardSpeed = (baseSpeed + turboLevel * 3f) * flipSpeedMultiplier * crashSpeedMultiplier;
+        // Roce con la pared: frena rápido mientras rozas y recupera poco a poco al soltar.
+        // Nunca frena más que un choque.
+        float scrapeFloor = Mathf.Max(SlideSpeedMultiplier, CrashSpeedMultiplier);
+        float scrapeTarget = scrapedThisFrame ? scrapeFloor : 1f;
+        scrapedThisFrame = false;
+
+        float scrapeRate = scrapeTarget < scrapeSpeedMultiplier
+            ? 10f
+            : (1f - scrapeFloor) / Mathf.Max(SlideRecoverTime, 0.01f);
+
+        scrapeSpeedMultiplier = Mathf.MoveTowards(scrapeSpeedMultiplier, scrapeTarget, scrapeRate * Time.deltaTime);
+
+        currentForwardSpeed = (baseSpeed + turboLevel * 3f) * flipSpeedMultiplier * crashSpeedMultiplier * scrapeSpeedMultiplier;
         // El avance usa la orientación SIN la pirueta del flip, así el giro es solo visual
         Vector3 moveForward = Quaternion.Euler(Pitch, Yaw, 0f) * Vector3.forward;
         MoveWithCollision(moveForward * currentForwardSpeed * Time.deltaTime, true);
@@ -522,7 +546,7 @@ public class AirplaneController : MonoBehaviour
     // Mueve la nave 'delta' sin atravesar nada con el tag de obstáculo. Devuelve lo que se ha movido de verdad.
     // Se lanza una esfera en la dirección del movimiento; si choca, la nave se queda pegada a la pared y
     // lo que le sobra de movimiento:
-    //  - en un choque de frente con 'allowBounce': rebota como una bola (se refleja contra la pared y la nave gira hacia ahí)
+    //  - en un choque de frente con 'allowBounce': rebote suave (la nave se desvía de la pared hasta 'BounceAngle' grados)
     //  - en un roce, o si no hay rebote: se desvía a lo largo de la pared (deslizar)
     private Vector3 MoveWithCollision(Vector3 delta, bool allowBounce = false)
     {
@@ -554,9 +578,11 @@ public class AirplaneController : MonoBehaviour
             float travel = Mathf.Max(0f, hit.distance - SkinWidth);
             position += direction * travel;
 
-            // ¿Choque de frente o roce? (1 = de frente, 0 = paralelo a la pared)
-            float impact = Vector3.Dot(-direction, hit.normal);
-            bool headOn = impact >= CrashMinImpact;
+            // Ángulo entre tu dirección y la pared (0 = paralelo, 90 = de frente)
+            float incidenceAngle = Mathf.Asin(Mathf.Clamp01(Vector3.Dot(-direction, hit.normal))) * Mathf.Rad2Deg;
+
+            // Por debajo de SlideMaxAngle es un roce (deslizas); por encima, un choque
+            bool headOn = incidenceAngle >= SlideMaxAngle;
 
             if (headOn)
                 RegisterCrash(hit);
@@ -565,14 +591,15 @@ public class AirplaneController : MonoBehaviour
 
             if (headOn && allowBounce && BounceOnCrash)
             {
-                // Rebote: la dirección se refleja contra la pared, como una bola contra una pared plana
-                Vector3 reflected = Vector3.Reflect(direction, hit.normal);
-                ApplyBounceHeading(reflected);
-                remaining = reflected * leftDistance;
+                // Rebote suave: la nave se aparta de la pared como mucho 'BounceAngle' grados
+                Vector3 bounceDirection = GetBounceDirection(direction, hit.normal);
+                ApplyBounceHeading(bounceDirection);
+                remaining = bounceDirection * leftDistance;
             }
             else
             {
                 // Deslizar: lo que queda de movimiento se desvía a lo largo de la pared
+                scrapedThisFrame = true;
                 remaining = Vector3.ProjectOnPlane(direction * leftDistance, hit.normal);
             }
         }
@@ -585,6 +612,37 @@ public class AirplaneController : MonoBehaviour
 
         transform.position = position;
         return position - startPosition;
+    }
+
+    // Dirección de salida tras chocar: sigue la pared (deslizar) y se separa de ella 'exitAngle' grados.
+    // exitAngle = el menor entre el ángulo con el que llegaste y BounceAngle, así un roce nunca rebota más de lo que entró.
+    private Vector3 GetBounceDirection(Vector3 direction, Vector3 normal)
+    {
+        // Ángulo entre tu dirección y el plano de la pared (0 = paralelo, 90 = de frente)
+        float incidenceAngle = Mathf.Asin(Mathf.Clamp01(Vector3.Dot(-direction, normal))) * Mathf.Rad2Deg;
+        float exitAngle = Mathf.Min(incidenceAngle, BounceAngle);
+
+        // Dirección a lo largo de la pared
+        Vector3 along = Vector3.ProjectOnPlane(direction, normal);
+
+        // Choque casi perfectamente de frente: no hay "a lo largo", así que se elige un lado.
+        // Se prefiere el lado hacia el que estabas girando.
+        if (along.sqrMagnitude < 0.0001f)
+        {
+            Vector3 shipRight = Quaternion.Euler(Pitch, Yaw, 0f) * Vector3.right;
+            along = Vector3.ProjectOnPlane(shipRight, normal);
+
+            if (along.sqrMagnitude < 0.0001f)
+                along = Vector3.ProjectOnPlane(Vector3.up, normal);
+
+            if (yawVelocity < -1f)
+                along = -along;
+        }
+
+        along.Normalize();
+
+        float exitRadians = exitAngle * Mathf.Deg2Rad;
+        return (along * Mathf.Cos(exitRadians) + normal * Mathf.Sin(exitRadians)).normalized;
     }
 
     // Orienta la nave (Yaw y Pitch) hacia la dirección del rebote
