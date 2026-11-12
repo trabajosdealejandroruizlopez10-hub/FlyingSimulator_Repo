@@ -110,6 +110,11 @@ public class AirCamera : MonoBehaviour
     public float shakeRotationAmount = 1.2f;
     [Tooltip("Velocidad del temblor. Más alto = más vibración")]
     public float shakeFrequency = 22f;
+    [Range(0f, 1f)]
+    [Tooltip("Intensidad del temblor al chocar contra un edificio")]
+    public float crashShakeAmount = 1f;
+    [Tooltip("Qué tan rápido se calma el temblor del choque (por segundo)")]
+    public float crashShakeDecay = 2.5f;
 
     private Camera cam;
     private Vector3 currentVelocity;
@@ -119,9 +124,6 @@ public class AirCamera : MonoBehaviour
     private Vector3 lastFollowPosition;
     private bool hasLastFollow = false;
 
-    // Al reaparecer la cámara se coloca al instante, sin recorrer el mapa
-    private bool snapNextFrame = false;
-
     // Feedback
     private float lastTurbo = 0f;
     private float smoothedFOV = 0f;       // efectos del nivel de turbo actual (suavizados)
@@ -129,6 +131,7 @@ public class AirCamera : MonoBehaviour
     private float smoothedVignette = 0f;
     private float smoothedShake = 0f;
     private float impulse = 0f;           // 0-1 golpe inicial al coger turbo
+    private float crashShake = 0f;        // 0-1 temblor del último choque
     private float shakeIntensity = 0f;
     private float vignetteAlpha = 0f;
 
@@ -161,23 +164,21 @@ public class AirCamera : MonoBehaviour
         if (airplane != null)
         {
             lastTurbo = airplane.GetTurboLevel();
-            airplane.Respawned += HandleRespawn;
+            airplane.Crashed += HandleCrash;
         }
 
         CreateVignette();
     }
 
-    private void HandleRespawn()
+    private void HandleCrash(Vector3 normal)
     {
-        snapNextFrame = true;
-        hasLastFollow = false;
-        currentTilt = 0f;
+        crashShake = Mathf.Clamp01(crashShakeAmount);
     }
 
     void OnDestroy()
     {
         if (airplane != null)
-            airplane.Respawned -= HandleRespawn;
+            airplane.Crashed -= HandleCrash;
 
         if (vignetteCanvas != null) Destroy(vignetteCanvas);
         if (vignetteTexture != null) Destroy(vignetteTexture);
@@ -248,7 +249,7 @@ public class AirCamera : MonoBehaviour
         transform.position = Vector3.Lerp(
             transform.position,
             targetPosition,
-            snapNextFrame ? 1f : positionSmooth * Time.deltaTime
+            positionSmooth * Time.deltaTime
         );
 
 
@@ -267,7 +268,7 @@ public class AirCamera : MonoBehaviour
             transform.rotation = Quaternion.Slerp(
                 transform.rotation,
                 targetRotation,
-                snapNextFrame ? 1f : rotationSmooth * Time.deltaTime
+                rotationSmooth * Time.deltaTime
             );
         }
 
@@ -315,8 +316,6 @@ public class AirCamera : MonoBehaviour
                 fovSmooth * Time.deltaTime
             );
         }
-
-        snapNextFrame = false;
 
         UpdateVignette();
         ApplyShake();
@@ -382,6 +381,10 @@ public class AirCamera : MonoBehaviour
             shakeIntensity = 0f;
             vignetteAlpha = 0f;
         }
+
+        // El temblor del choque funciona siempre, aunque el feedback de turbo esté desactivado
+        crashShake = Mathf.MoveTowards(crashShake, 0f, crashShakeDecay * dt);
+        shakeIntensity = Mathf.Clamp01(shakeIntensity + crashShake);
     }
 
     private float SmoothToward(float current, float target, float dt)

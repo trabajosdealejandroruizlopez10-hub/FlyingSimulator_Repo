@@ -13,15 +13,6 @@ public class AirplaneController : MonoBehaviour
 
     public enum FlipDirection { Up, Down, Left, Right }
 
-    // Punto de la trayectoria guardado para el respawn
-    private struct PathSample
-    {
-        public float time;
-        public Vector3 position;
-        public float yaw;
-        public float pitch;
-    }
-
     [Serializable]
     public class FlipSettings
     {
@@ -123,24 +114,42 @@ public class AirplaneController : MonoBehaviour
         new Color(0.8f, 0.3f, 1f)    // nivel 3 morado
     };
 
-    [Header("Límites del mapa (respawn)")]
-    [SerializeField] bool UseMapBounds = true;
-    [Tooltip("Capa de las mallas de los tubos (crea una, por ejemplo 'MapWall', y ponla en todos los tubos). Tocar la pared interior te hace reaparecer")]
-    [SerializeField] LayerMask MapWallLayers;
-    [Tooltip("Radio de la nave para detectar la pared (metros)")]
+    [Header("Colisión con edificios")]
+    [SerializeField] bool UseObstacleCollision = true;
+    [Tooltip("Tag que deben tener los objetos que bloquean a la nave")]
+    [SerializeField] string ObstacleTag = "Obstacle";
+    [Tooltip("Capas que se comprueban. Déjalo en Everything salvo que quieras excluir alguna")]
+    [SerializeField] LayerMask ObstacleLayers = ~0;
+    [Tooltip("Tamaño de la nave para chocar (metros). Se dibuja en la escena al seleccionarla")]
     [SerializeField] float ShipRadius = 1f;
-    [Tooltip("Segundos entre tocar la pared y reaparecer")]
-    [SerializeField] float RespawnDelayAfterHit = 0.6f;
-    [Tooltip("Reaparece en el punto de tu trayectoria de hace estos segundos")]
-    [SerializeField] float RespawnSecondsBack = 10f;
-    [Tooltip("Cada cuántos segundos se guarda un punto de la trayectoria")]
-    [SerializeField] float PathSampleInterval = 0.2f;
-    [Tooltip("Si está activado, pierdes todo el turbo al reaparecer")]
-    [SerializeField] bool ClearTurboOnRespawn = true;
-    [Tooltip("Se dispara al salir del mapa (para avisos o sonido)")]
-    [SerializeField] UnityEvent OnLeftBoundsEvent;
-    [Tooltip("Se dispara al reaparecer (para fundidos o sonido)")]
-    [SerializeField] UnityEvent OnRespawnEvent;
+    [Tooltip("Margen que la nave deja con la pared, para no quedar pegada o dentro")]
+    [SerializeField] float SkinWidth = 0.05f;
+    [Tooltip("Ángulo (grados) entre tu dirección y la pared hasta el cual solo te deslizas. Por encima es un choque (rebote, pierdes turbo...). Más alto = más margen para deslizar")]
+    [Range(0f, 90f)]
+    [SerializeField] float SlideMaxAngle = 45f;
+    [Tooltip("Multiplicador de velocidad mientras rozas una pared (0.65 = vas al 65%). Nunca frena más que un choque")]
+    [Range(0f, 1f)]
+    [SerializeField] float SlideSpeedMultiplier = 0.65f;
+    [Tooltip("Segundos que tardas en recuperar la velocidad al dejar de rozar la pared")]
+    [SerializeField] float SlideRecoverTime = 0.6f;
+    [Tooltip("Si está activado, al chocar de frente la nave se desvía de la pared. Si no, te deslizas por ella")]
+    [SerializeField] bool BounceOnCrash = true;
+    [Tooltip("Ángulo máximo (grados) con el que sales de la pared tras chocar. 0 = solo deslizas; 90 = rebote completo contra la pared. Si chocas con menos ángulo que este valor, sales con el mismo ángulo con el que entraste")]
+    [Range(0f, 90f)]
+    [SerializeField] float BounceAngle = 25f;
+    [Tooltip("Segundos mínimos entre dos choques (evita repetir el efecto mientras rozas una pared)")]
+    [SerializeField] float CrashCooldown = 0.4f;
+    [Tooltip("Si está activado, pierdes todo el turbo al chocar")]
+    [SerializeField] bool CrashClearsTurbo = true;
+    [Tooltip("Multiplicador de velocidad justo tras el choque (0.25 = vas al 25%)")]
+    [Range(0f, 1f)]
+    [SerializeField] float CrashSpeedMultiplier = 0.25f;
+    [Tooltip("Segundos que tardas en recuperar la velocidad normal tras un choque")]
+    [SerializeField] float CrashSlowdownDuration = 2.5f;
+    [Tooltip("Escribe en la consola con qué objeto has chocado (útil para depurar)")]
+    [SerializeField] bool LogCrashes = false;
+    [Tooltip("Se dispara al chocar de frente (sonido, partículas, etc.)")]
+    [SerializeField] UnityEvent OnCrashEvent;
 
     [Header("Flips (esquiva lateral/vertical con pirueta)")]
     [SerializeField] FlipSettings FlipUpSettings = new FlipSettings(6f, 30f, 360f, 1.5f);
@@ -216,25 +225,24 @@ public class AirplaneController : MonoBehaviour
     private float currentForwardSpeed;
     private float slopeSpeedOffset = 0f;
 
-    // Límites y respawn
-    private readonly List<PathSample> pathHistory = new List<PathSample>();
-    private float pathSampleTimer = 0f;
-    private float lastInsideTime = 0f;
-    private float outsideTimer = 0f;
-    private bool isOutOfBounds = false;
-    private bool warnedEmptyHistory = false;
-    private Vector3 lastBoundsPosition;
-    private bool hasLastBoundsPosition = false;
+    // Colisión con edificios
+    private Vector3 lastSafePosition;
+    private float lastCrashTime = -999f;
+    private float crashSpeedMultiplier = 1f;
+    private float scrapeSpeedMultiplier = 1f;   // frenada al rozar una pared
+    private bool scrapedThisFrame = false;
+    private readonly RaycastHit[] obstacleHits = new RaycastHit[16];
+    private readonly Collider[] overlapBuffer = new Collider[16];
 
-    // Lo escucha la cámara para colocarse al instante tras reaparecer
-    public event Action Respawned;
+    // Lo escucha la cámara para hacer temblar la pantalla (recibe la normal de la pared)
+    public event Action<Vector3> Crashed;
 
     private void Start()
     {
         rb = Nave.GetComponent<Rigidbody>();
         currentForwardSpeed = FlySpeed;
         SetDriftParticles(0);
-        InitBounds();
+        lastSafePosition = transform.position;
     }
 
     void Update()
@@ -324,16 +332,26 @@ public class AirplaneController : MonoBehaviour
 
         float baseSpeed = Mathf.Max(FlySpeed + slopeSpeedOffset, FlySpeed * MinSlopeSpeedFactor);
 
-        currentForwardSpeed = (baseSpeed + turboLevel * 3f) * flipSpeedMultiplier;
+        // La velocidad vuelve a la normalidad de forma lineal durante CrashSlowdownDuration segundos
+        float crashRecoverRate = (1f - CrashSpeedMultiplier) / Mathf.Max(CrashSlowdownDuration, 0.01f);
+        crashSpeedMultiplier = Mathf.MoveTowards(crashSpeedMultiplier, 1f, crashRecoverRate * Time.deltaTime);
+
+        // Roce con la pared: frena rápido mientras rozas y recupera poco a poco al soltar.
+        // Nunca frena más que un choque.
+        float scrapeFloor = Mathf.Max(SlideSpeedMultiplier, CrashSpeedMultiplier);
+        float scrapeTarget = scrapedThisFrame ? scrapeFloor : 1f;
+        scrapedThisFrame = false;
+
+        float scrapeRate = scrapeTarget < scrapeSpeedMultiplier
+            ? 10f
+            : (1f - scrapeFloor) / Mathf.Max(SlideRecoverTime, 0.01f);
+
+        scrapeSpeedMultiplier = Mathf.MoveTowards(scrapeSpeedMultiplier, scrapeTarget, scrapeRate * Time.deltaTime);
+
+        currentForwardSpeed = (baseSpeed + turboLevel * 3f) * flipSpeedMultiplier * crashSpeedMultiplier * scrapeSpeedMultiplier;
         // El avance usa la orientación SIN la pirueta del flip, así el giro es solo visual
         Vector3 moveForward = Quaternion.Euler(Pitch, Yaw, 0f) * Vector3.forward;
-        transform.position += moveForward * currentForwardSpeed * Time.deltaTime;
-
-        // =========================
-        // LÍMITES DEL MAPA
-        // =========================
-
-        HandleBounds();
+        MoveWithCollision(moveForward * currentForwardSpeed * Time.deltaTime, true);
     }
 
     // =========================
@@ -418,8 +436,9 @@ public class AirplaneController : MonoBehaviour
         float forwardStep = activeFlip.ForwardDistance * (step / activeFlip.Distance);
         Vector3 movement = flipWorldDirection * step + flipForwardDirection * forwardStep;
 
-        transform.position += movement;
-        flipCameraOffset += movement;
+        // Se mueve respetando las paredes; la cámara solo sigue lo que de verdad te has movido
+        Vector3 moved = MoveWithCollision(movement);
+        flipCameraOffset += moved;
         flipTravelled += step;
 
         // Pirueta sincronizada con el desplazamiento
@@ -521,172 +540,195 @@ public class AirplaneController : MonoBehaviour
     }
 
     // =========================
-    // LÍMITES DEL MAPA / RESPAWN
+    // COLISIÓN CON EDIFICIOS
     // =========================
 
-    private void InitBounds()
+    // Mueve la nave 'delta' sin atravesar nada con el tag de obstáculo. Devuelve lo que se ha movido de verdad.
+    // Se lanza una esfera en la dirección del movimiento; si choca, la nave se queda pegada a la pared y
+    // lo que le sobra de movimiento:
+    //  - en un choque de frente con 'allowBounce': rebote suave (la nave se desvía de la pared hasta 'BounceAngle' grados)
+    //  - en un roce, o si no hay rebote: se desvía a lo largo de la pared (deslizar)
+    private Vector3 MoveWithCollision(Vector3 delta, bool allowBounce = false)
     {
-        lastInsideTime = Time.time;
+        Vector3 startPosition = transform.position;
 
-        if (UseMapBounds && MapWallLayers.value == 0)
-            Debug.LogWarning("AirplaneController: 'MapWallLayers' está vacío, así que el respawn por tocar la pared del mapa no hará nada.", this);
-    }
-
-    private void HandleBounds()
-    {
-        if (!UseMapBounds || MapWallLayers.value == 0) return;
-
-        // Ya tocaste la pared: cuenta atrás hasta reaparecer
-        if (isOutOfBounds)
+        if (!UseObstacleCollision || delta.sqrMagnitude < 0.0000001f)
         {
-            outsideTimer += Time.deltaTime;
-
-            if (outsideTimer >= RespawnDelayAfterHit)
-                Respawn();
-            return;
+            transform.position += delta;
+            return delta;
         }
 
-        if (TouchedWall())
+        Vector3 position = startPosition;
+        Vector3 remaining = delta;
+
+        // Hasta 3 rebotes por frame (esquinas)
+        for (int i = 0; i < 3 && remaining.sqrMagnitude > 0.0000001f; i++)
         {
-            isOutOfBounds = true;
-            outsideTimer = 0f;
-            OnLeftBoundsEvent?.Invoke();
-            return;
-        }
+            float distance = remaining.magnitude;
+            Vector3 direction = remaining / distance;
 
-        lastInsideTime = Time.time;
-
-        // Solo guardamos trayectoria mientras no tocas la pared: así el respawn siempre es un punto válido
-        pathSampleTimer -= Time.deltaTime;
-        if (pathSampleTimer <= 0f)
-        {
-            RecordPathSample();
-            pathSampleTimer = Mathf.Max(PathSampleInterval, 0.02f);
-        }
-    }
-
-    // ¿Está la nave tocando la pared interior de algún tubo?
-    private bool TouchedWall()
-    {
-        Vector3 position = transform.position;
-        bool hit = false;
-
-        // 1) Solape directo con la pared en la posición actual
-        if (Physics.CheckSphere(position, ShipRadius, MapWallLayers, QueryTriggerInteraction.Ignore))
-            hit = true;
-
-        // 2) Barrido desde el frame anterior, para no atravesar la pared a mucha velocidad (turbo, flips)
-        if (!hit && hasLastBoundsPosition)
-        {
-            Vector3 delta = position - lastBoundsPosition;
-            float distanceMoved = delta.magnitude;
-
-            if (distanceMoved > 0.001f &&
-                Physics.SphereCast(lastBoundsPosition, ShipRadius, delta / distanceMoved, out RaycastHit _,
-                                   distanceMoved, MapWallLayers, QueryTriggerInteraction.Ignore))
-                hit = true;
-        }
-
-        lastBoundsPosition = position;
-        hasLastBoundsPosition = true;
-        return hit;
-    }
-
-    private void RecordPathSample()
-    {
-        pathHistory.Add(new PathSample
-        {
-            time = Time.time,
-            position = transform.position,
-            yaw = Yaw,
-            pitch = Pitch
-        });
-
-        // Descartar lo que ya no hace falta, conservando siempre un punto anterior al margen de respawn
-        while (pathHistory.Count > 2 && pathHistory[1].time <= Time.time - RespawnSecondsBack)
-            pathHistory.RemoveAt(0);
-    }
-
-    private void Respawn()
-    {
-        if (pathHistory.Count == 0)
-        {
-            if (!warnedEmptyHistory)
+            // Si no hay nada en el camino (contando el margen), nos movemos entero
+            if (!CastObstacle(position, direction, distance + SkinWidth, out RaycastHit hit))
             {
-                Debug.LogWarning("AirplaneController: estás fuera del mapa y no hay trayectoria guardada. ¿Está bien colocado el collider de límites?", this);
-                warnedEmptyHistory = true;
-            }
-            return;
-        }
-
-        // El punto más reciente que sea al menos 'RespawnSecondsBack' anterior a tu salida
-        float targetTime = lastInsideTime - RespawnSecondsBack;
-        int index = 0;
-
-        for (int i = pathHistory.Count - 1; i >= 0; i--)
-        {
-            if (pathHistory[i].time <= targetTime)
-            {
-                index = i;
+                position += remaining;
                 break;
             }
+
+            // Avanzar hasta la pared, dejando un margen
+            float travel = Mathf.Max(0f, hit.distance - SkinWidth);
+            position += direction * travel;
+
+            // Ángulo entre tu dirección y la pared (0 = paralelo, 90 = de frente)
+            float incidenceAngle = Mathf.Asin(Mathf.Clamp01(Vector3.Dot(-direction, hit.normal))) * Mathf.Rad2Deg;
+
+            // Por debajo de SlideMaxAngle es un roce (deslizas); por encima, un choque
+            bool headOn = incidenceAngle >= SlideMaxAngle;
+
+            if (headOn)
+                RegisterCrash(hit);
+
+            float leftDistance = distance - travel;
+
+            if (headOn && allowBounce && BounceOnCrash)
+            {
+                // Rebote suave: la nave se aparta de la pared como mucho 'BounceAngle' grados
+                Vector3 bounceDirection = GetBounceDirection(direction, hit.normal);
+                ApplyBounceHeading(bounceDirection);
+                remaining = bounceDirection * leftDistance;
+            }
+            else
+            {
+                // Deslizar: lo que queda de movimiento se desvía a lo largo de la pared
+                scrapedThisFrame = true;
+                remaining = Vector3.ProjectOnPlane(direction * leftDistance, hit.normal);
+            }
         }
 
-        PathSample sample = pathHistory[index];
+        // Red de seguridad: si por una esquina has acabado dentro de algo, vuelves al último sitio válido
+        if (OverlapsObstacle(position))
+            position = lastSafePosition;
+        else
+            lastSafePosition = position;
 
-        // Olvidar la trayectoria posterior, que es la que te sacó del mapa
-        pathHistory.RemoveRange(index + 1, pathHistory.Count - index - 1);
+        transform.position = position;
+        return position - startPosition;
+    }
 
-        // Posición y orientación
-        transform.position = sample.position;
-        Yaw = sample.yaw;
-        Pitch = sample.pitch;
-        currentRoll = 0f;
-        transform.rotation = Quaternion.Euler(Pitch, Yaw, 0f);
+    // Dirección de salida tras chocar: sigue la pared (deslizar) y se separa de ella 'exitAngle' grados.
+    // exitAngle = el menor entre el ángulo con el que llegaste y BounceAngle, así un roce nunca rebota más de lo que entró.
+    private Vector3 GetBounceDirection(Vector3 direction, Vector3 normal)
+    {
+        // Ángulo entre tu dirección y el plano de la pared (0 = paralelo, 90 = de frente)
+        float incidenceAngle = Mathf.Asin(Mathf.Clamp01(Vector3.Dot(-direction, normal))) * Mathf.Rad2Deg;
+        float exitAngle = Mathf.Min(incidenceAngle, BounceAngle);
 
-        // Cortar inercias y acciones en curso
+        // Dirección a lo largo de la pared
+        Vector3 along = Vector3.ProjectOnPlane(direction, normal);
+
+        // Choque casi perfectamente de frente: no hay "a lo largo", así que se elige un lado.
+        // Se prefiere el lado hacia el que estabas girando.
+        if (along.sqrMagnitude < 0.0001f)
+        {
+            Vector3 shipRight = Quaternion.Euler(Pitch, Yaw, 0f) * Vector3.right;
+            along = Vector3.ProjectOnPlane(shipRight, normal);
+
+            if (along.sqrMagnitude < 0.0001f)
+                along = Vector3.ProjectOnPlane(Vector3.up, normal);
+
+            if (yawVelocity < -1f)
+                along = -along;
+        }
+
+        along.Normalize();
+
+        float exitRadians = exitAngle * Mathf.Deg2Rad;
+        return (along * Mathf.Cos(exitRadians) + normal * Mathf.Sin(exitRadians)).normalized;
+    }
+
+    // Orienta la nave (Yaw y Pitch) hacia la dirección del rebote
+    private void ApplyBounceHeading(Vector3 direction)
+    {
+        direction.Normalize();
+
+        // forward = (sin(yaw)·cos(pitch), -sin(pitch), cos(yaw)·cos(pitch)); en este juego, Pitch positivo = morro abajo
+        Yaw = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+        Pitch = Mathf.Clamp(-Mathf.Asin(Mathf.Clamp(direction.y, -1f, 1f)) * Mathf.Rad2Deg, -80f, 80f);
+
+        // Cortar la inercia del giro para que no pelee con el rebote
         yawVelocity = 0f;
         pitchVelocity = 0f;
-        slopeSpeedOffset = 0f;
+    }
 
-        isFlipping = false;
-        flipRollOffset = 0f;
-        flipPitchOffset = 0f;
-        flipCameraOffset = Vector3.zero;
-        flipSpeedMultiplier = 1f;
-        flipCooldownTimer = 0f;
+    private bool IsObstacle(Collider collider)
+    {
+        return collider != null && (string.IsNullOrEmpty(ObstacleTag) || collider.CompareTag(ObstacleTag));
+    }
 
-        drifting = false;
-        driftDirection = 0;
-        driftTime = 0f;
-        driftTier = 0;
-        SetDriftParticles(0);
+    // Lanza una esfera y devuelve el obstáculo más cercano (ignora triggers como los aros)
+    private bool CastObstacle(Vector3 origin, Vector3 direction, float distance, out RaycastHit best)
+    {
+        best = default;
+        float bestDistance = float.MaxValue;
+        bool found = false;
 
-        if (ClearTurboOnRespawn)
+        int count = Physics.SphereCastNonAlloc(origin, ShipRadius, direction, obstacleHits, distance,
+                                               ObstacleLayers, QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit candidate = obstacleHits[i];
+
+            if (!IsObstacle(candidate.collider)) continue;
+
+            if (candidate.distance < bestDistance)
+            {
+                bestDistance = candidate.distance;
+                best = candidate;
+                found = true;
+            }
+        }
+
+        return found;
+    }
+
+    private bool OverlapsObstacle(Vector3 position)
+    {
+        int count = Physics.OverlapSphereNonAlloc(position, ShipRadius * 0.95f, overlapBuffer,
+                                                  ObstacleLayers, QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < count; i++)
+        {
+            if (IsObstacle(overlapBuffer[i]))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void RegisterCrash(RaycastHit hit)
+    {
+        if (Time.time < lastCrashTime + CrashCooldown) return;
+        lastCrashTime = Time.time;
+
+        if (CrashClearsTurbo)
         {
             turboCharges.Clear();
             turboLevel = 0;
         }
 
-        isOutOfBounds = false;
-        outsideTimer = 0f;
-        lastInsideTime = Time.time;
-        pathSampleTimer = 0f;
-        hasLastBoundsPosition = false;
+        crashSpeedMultiplier = CrashSpeedMultiplier;
 
-        OnRespawnEvent?.Invoke();
-        Respawned?.Invoke();
+        if (LogCrashes)
+            Debug.Log("AirplaneController: choque con '" + hit.collider.name + "'", hit.collider);
+
+        OnCrashEvent?.Invoke();
+        Crashed?.Invoke(hit.normal);
     }
 
-    public bool IsOutOfBounds()
+    private void OnDrawGizmosSelected()
     {
-        return isOutOfBounds;
-    }
-
-    // Segundos que quedan para reaparecer (0 si estás dentro). Útil para un aviso en pantalla
-    public float GetRespawnTimeLeft()
-    {
-        return isOutOfBounds ? Mathf.Max(0f, RespawnDelayAfterHit - outsideTimer) : 0f;
+        Gizmos.color = new Color(1f, 0.3f, 0.2f, 0.6f);
+        Gizmos.DrawWireSphere(transform.position, ShipRadius);
     }
 
     // =========================
