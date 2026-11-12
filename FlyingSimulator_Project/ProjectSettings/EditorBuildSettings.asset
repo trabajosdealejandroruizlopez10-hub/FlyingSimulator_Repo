@@ -8,12 +8,12 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/MainMenu.unity
     guid: 9d7f2bfe139cc3b46a9d5de43ad95e50
-  - enabled: 0
-    path: Assets/Scenes/SCN_Pruebas_Ale.unity
-    guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
     path: Assets/Scenes/SCN_Pruebas_Diego.unity
     guid: 001057ccb3ccb8f4da5cc5a620897d51
+  - enabled: 1
+    path: Assets/Scenes/SCN_Pruebas_Ale.unity
+    guid: 99c9720ab356a0642a771bea13969a05
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: f588a4d8182a1ca498194f1428f99afc, type: 3}
   m_UseUCBPForAssetBundles: 0
